@@ -10,7 +10,55 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 )
+
+// type FileLocker struct {
+// 	fileMap sync.Map
+// }
+//
+// func (l FileLocker) read(fileName string) (data []byte, err error) {
+// 	// TODO
+// 	// NOTE: If a file does not exist in the map, then it does not necessarily mean that the file does not exist it only means that no is currently locking the file.
+// 	// APPROACH: Maintain a lock for each file created or modified during this session.
+// 	return nil, nil
+// }
+//
+// func (l FileLocker) write(fileName string, data []byte) (err error) {
+// 	// TDDO
+// 	// NOTE: If a file does not exist in the map, then it does not necessarily mean that the file does not exist it only means that no is currently locking the file.
+// 	// APPROACH: Maintain a lock for each file created or modified during this session.
+// 	return nil
+// }
+
+type Counter struct {
+	mu    sync.Mutex
+	count uint
+}
+
+func newCounter(maxCount uint) Counter {
+	return Counter{count: maxCount}
+}
+
+func (c *Counter) up() {
+	c.mu.Lock()
+	c.count++
+	c.mu.Unlock()
+}
+
+func (c *Counter) down() {
+	for {
+		c.mu.Lock()
+		if c.count == 0 {
+			c.mu.Unlock()
+			continue
+		} else {
+			c.count--
+			c.mu.Unlock()
+			break
+		}
+	}
+}
 
 var logger log.Logger = *log.Default()
 
@@ -34,6 +82,8 @@ func start() (err error) {
 	}
 	defer listener.Close()
 
+	// TODO: Implement limit on the number of Go routines
+	counter := newCounter(10)
 	for {
 		// Wait for client to connect
 		conn, err := listener.Accept()
@@ -42,12 +92,16 @@ func start() (err error) {
 			continue
 		}
 		logger.Printf("Accepted new client connection: %v", conn.RemoteAddr())
+		counter.down()
+		logger.Printf("Current counter is: %v", counter.count)
 
 		// Handle client requests
 		go func() {
 			if err := handleRequest(conn); err != nil {
 				logger.Println(err)
 			}
+			counter.up()
+			logger.Printf("Current counter is: %v", counter.count)
 		}()
 	}
 }
@@ -55,7 +109,8 @@ func start() (err error) {
 func parsePort() (port int, err error) {
 	// Make sure the right number of arguments are supplied
 	if len(os.Args) != 2 {
-		return 0, fmt.Errorf("Usage: %v <port>\n", os.Args[0])
+		fmt.Printf("Usage: %v <port>\n", os.Args[0])
+		return 0, fmt.Errorf("Missing argument <port>")
 	}
 
 	// Make sure the port number is provided properly
@@ -90,6 +145,7 @@ func handleRequest(conn net.Conn) (err error) {
 		return err
 	}
 
+	// TODO: Implement Get and POST
 	// Log request
 	logger.Printf("method: %v, path: %v, body: %v\n", method, path, body)
 
