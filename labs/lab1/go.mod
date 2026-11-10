@@ -1,3 +1,3 @@
-module example.com/waffel/http_server
+module github.com/Zakoroo/distributed-systems/labs/lab1
 
 go 1.27.3

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+
+	"github.com/Zakoroo/distributed-systems/labs/lab1/concurrent/semaphores"
 )
 
 // type FileLocker struct {
@@ -53,7 +55,7 @@ func start() (err error) {
 	defer listener.Close()
 
 	// TODO: Implement limit on the number of Go routines
-	sem, err := NewSemaphore(10)
+	sem, err := semaphores.NewSemaphore(10)
 	if err != nil {
 		return err
 	}
@@ -67,7 +69,6 @@ func start() (err error) {
 		}
 		logger.Printf("Accepted new client connection: %v", conn.RemoteAddr())
 		sem.Down()
-		logger.Printf("Current counter is: %v", sem.count)
 
 		// Handle client requests
 		go func() {
@@ -75,7 +76,6 @@ func start() (err error) {
 				logger.Println(err)
 			}
 			sem.Up()
-			logger.Printf("Current counter is: %v", sem.count)
 		}()
 	}
 }

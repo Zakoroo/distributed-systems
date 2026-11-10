@@ -1,4 +1,4 @@
-package main
+package semaphores
 
 import (
 	"fmt"
