@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"sync"
 )
 
 // type FileLocker struct {
@@ -31,34 +30,7 @@ import (
 // 	return nil
 // }
 
-type Counter struct {
-	mu    sync.Mutex
-	count uint
-}
-
-func newCounter(maxCount uint) Counter {
-	return Counter{count: maxCount}
-}
-
-func (c *Counter) up() {
-	c.mu.Lock()
-	c.count++
-	c.mu.Unlock()
-}
-
-func (c *Counter) down() {
-	for {
-		c.mu.Lock()
-		if c.count == 0 {
-			c.mu.Unlock()
-			continue
-		} else {
-			c.count--
-			c.mu.Unlock()
-			break
-		}
-	}
-}
+// The current implementation of Semaphore uses a spin-lock mechanism, i.e., keep waiting in loop while there are no available resouce. This could be improved further using condition variable (performance optimization).
 
 var logger log.Logger = *log.Default()
 
@@ -83,7 +55,7 @@ func start() (err error) {
 	defer listener.Close()
 
 	// TODO: Implement limit on the number of Go routines
-	counter := newCounter(10)
+	sem := NewSemaphore(10)
 	for {
 		// Wait for client to connect
 		conn, err := listener.Accept()
@@ -92,16 +64,16 @@ func start() (err error) {
 			continue
 		}
 		logger.Printf("Accepted new client connection: %v", conn.RemoteAddr())
-		counter.down()
-		logger.Printf("Current counter is: %v", counter.count)
+		sem.Down()
+		logger.Printf("Current counter is: %v", sem.count)
 
 		// Handle client requests
 		go func() {
 			if err := handleRequest(conn); err != nil {
 				logger.Println(err)
 			}
-			counter.up()
-			logger.Printf("Current counter is: %v", counter.count)
+			sem.Up()
+			logger.Printf("Current counter is: %v", sem.count)
 		}()
 	}
 }
