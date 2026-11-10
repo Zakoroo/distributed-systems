@@ -11,28 +11,12 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/Zakoroo/distributed-systems/labs/lab1/concurrent/semaphores"
+	"github.com/Zakoroo/distributed-systems/concurrent/files"
+	"github.com/Zakoroo/distributed-systems/concurrent/semaphores"
 )
 
-// type FileLocker struct {
-// 	fileMap sync.Map
-// }
-//
-// func (l FileLocker) read(fileName string) (data []byte, err error) {
-// 	// TODO
-// 	// NOTE: If a file does not exist in the map, then it does not necessarily mean that the file does not exist it only means that no is currently locking the file.
-// 	// APPROACH: Maintain a lock for each file created or modified during this session.
-// 	return nil, nil
-// }
-//
-// func (l FileLocker) write(fileName string, data []byte) (err error) {
-// 	// TDDO
-// 	// NOTE: If a file does not exist in the map, then it does not necessarily mean that the file does not exist it only means that no is currently locking the file.
-// 	// APPROACH: Maintain a lock for each file created or modified during this session.
-// 	return nil
-// }
-
-var logger log.Logger = *log.Default()
+var logger *log.Logger = log.Default()
+var manager *files.Manager = files.NewManager()
 
 func main() {
 	if err := start(); err != nil {

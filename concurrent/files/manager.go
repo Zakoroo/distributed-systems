@@ -9,7 +9,7 @@ type Manager struct {
 	locker *Locker
 }
 
-func NewFileManager() *Manager {
+func NewManager() *Manager {
 	return &Manager{
 		locker: NewLocker(),
 	}
