@@ -30,8 +30,6 @@ import (
 // 	return nil
 // }
 
-// The current implementation of Semaphore uses a spin-lock mechanism, i.e., keep waiting in loop while there are no available resouce. This could be improved further using condition variable (performance optimization).
-
 var logger log.Logger = *log.Default()
 
 func main() {
@@ -55,7 +53,11 @@ func start() (err error) {
 	defer listener.Close()
 
 	// TODO: Implement limit on the number of Go routines
-	sem := NewSemaphore(10)
+	sem, err := NewSemaphore(10)
+	if err != nil {
+		return err
+	}
+
 	for {
 		// Wait for client to connect
 		conn, err := listener.Accept()
