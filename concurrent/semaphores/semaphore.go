@@ -5,9 +5,10 @@ import (
 	"sync"
 )
 
-// The current implementation of Semaphore uses a spin-lock mechanism, i.e., keep waiting in loop while there are no available resouce. This could be improved further using condition variable (performance optimization).
+// Semaphore implemented using a condition variable and a mutex to manage concurrency.
 type Semaphore struct {
-	mu    sync.Mutex
+	mu    *sync.Mutex
+	cond  *sync.Cond
 	count uint
 }
 
@@ -16,27 +17,29 @@ func NewSemaphore(maxCount uint) (*Semaphore, error) {
 	if maxCount == 0 {
 		return nil, fmt.Errorf("Semaphore cannot be initialized with count == 0")
 	}
-	return &Semaphore{count: maxCount}, nil
+
+	mu := &sync.Mutex{}
+	return &Semaphore{
+		mu:    mu,
+		cond:  sync.NewCond(mu),
+		count: maxCount,
+	}, nil
 }
 
 // Increments the semaphore's count by 1.
 func (c *Semaphore) Up() {
 	c.mu.Lock()
 	c.count++
+	c.cond.Signal()
 	c.mu.Unlock()
 }
 
 // Decrements the semaphore's count by 1 iff the count is greater than 0, else it will block the current go routine until another one calls `Up()`.
 func (c *Semaphore) Down() {
-	for {
-		c.mu.Lock()
-		if c.count == 0 {
-			c.mu.Unlock()
-			continue
-		} else {
-			c.count--
-			c.mu.Unlock()
-			break
-		}
+	c.mu.Lock()
+	for c.count == 0 {
+		c.cond.Wait()
 	}
+	c.count--
+	c.mu.Unlock()
 }
