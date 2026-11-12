@@ -1,2 +1,10 @@
+# Compiled files
 http_server
 lab1
+
+# Runtime resources
+public
+
+# IDE configurations
+.zed
+.vscode

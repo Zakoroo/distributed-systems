@@ -1,4 +1,5 @@
-package files
+// Package filepolicy defines Lab 1 file naming and content-type rules.
+package filepolicy
 
 import (
 	"slices"
@@ -44,6 +45,49 @@ func IsValidFileName(filename string) bool {
 	}
 	if slices.Contains(ReservedNames, basename) {
 		return false
+	}
+
+	return true
+}
+
+func IsValidFilePath(path string) bool {
+	if len(path) == 0 {
+		return false
+	}
+
+	// Split the path into segments, ignoring consecutive, leading, or trailing slashes
+	segments := strings.FieldsFunc(path, func(r rune) bool {
+		return r == '/'
+	})
+
+	if len(segments) == 0 {
+		return false
+	}
+
+	depth := 0
+	for _, segment := range segments {
+		if segment == "." {
+			// Current directory segment, doesn't change depth
+			continue
+		}
+
+		if segment == ".." {
+			// Parent directory segment, decreases depth
+			depth--
+			// If depth goes below 0, the path is trying to escape the root directory
+			if depth < 0 {
+				return false
+			}
+			continue
+		}
+
+		// Validate normal directory or file names
+		if !IsValidFileName(segment) {
+			return false
+		}
+
+		// Entering a valid directory/file increases our depth
+		depth++
 	}
 
 	return true
