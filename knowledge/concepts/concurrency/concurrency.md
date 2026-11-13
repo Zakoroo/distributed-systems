@@ -11,6 +11,9 @@ Parent: [Concepts](../README.md).
 4. [Keyed locks and atomic operations](keyed-locks-and-atomic-operations.md): one
    lock per resource, safe cleanup, complete versions, and backpressure.
 
+5. [Publish-subscribe and long polling](publish-subscribe.md): broadcast, bounded
+   queues, ordering, cancellation, and waiting without blocking publishers.
+
 Read [functions and types](../go/functions-and-types.md) first if callbacks and
 closures are unfamiliar. [Testing](../go/testing.md) explains how to gather
 evidence about concurrent behavior without relying on arbitrary sleeps.

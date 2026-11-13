@@ -5,10 +5,13 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/Zakoroo/distributed-systems/httpserver"
 	"github.com/Zakoroo/distributed-systems/labs/lab1/src/interfaces/fileapi"
+	"github.com/Zakoroo/distributed-systems/labs/lab1/src/interfaces/pubsubapi"
 	"github.com/Zakoroo/distributed-systems/labs/lab1/src/middleware"
+	"github.com/Zakoroo/distributed-systems/labs/lab1/src/pubsub"
 )
 
 const (
@@ -45,7 +48,27 @@ func newServer(root string) (*httpserver.Server, error) {
 	}
 	files := fileapi.New(root)
 
-	// TODO: Add endpoints for implementing the bouns part for lab 1 here.
+	broker, err := pubsub.New(64)
+	if err != nil {
+		return nil, err
+	}
+	api, err := pubsubapi.New(broker, 15*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	for _, endpoint := range []struct {
+		path    string
+		handler httpserver.Handler
+	}{
+		{"/subscribe", api.HandleSubscribe},
+		{"/unsubscribe", api.HandleUnsubscribe},
+		{"/publish", api.HandlePublish},
+		{"/events", api.HandleEvents},
+	} {
+		if err := s.RegisterEndpoint(endpoint.path, endpoint.handler); err != nil {
+			return nil, err
+		}
+	}
 
 	// File validation belongs only to the fallback, leaving custom endpoints free
 	// to define their own path policy. Chain runs validation in the listed order.

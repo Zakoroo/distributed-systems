@@ -14,6 +14,9 @@ official assignment requirements or general concept notes.
 4. [0004: Lab 1 source and docs](0004-lab1-source-and-docs.md): `src/` and `docs/`
    folders, stable module/agent-guide placement, and updated build commands.
 
+5. [0005: Pub-sub and waiting admission](0005-pubsub-and-waiting-admission.md):
+   private broker state, subscriber queues, long polling, and publisher capacity.
+
 Use the next available number for a significant new decision. State whether it
 is proposed or accepted, its context, alternatives, and consequences. Mark a
 decision superseded when a later accepted choice replaces it.

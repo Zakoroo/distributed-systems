@@ -104,6 +104,20 @@ server's configuration must be distinguished from the assignment's chosen cap.
 
 Connection reuse and slow-client limits remain deferred work. Their vocabulary
 is introduced in the networking and concurrency notes; those features are not
-claimed as implemented. Pub-sub, cloud deployment, and container tooling are
-outside this basic-part learning map.
+claimed as implemented. Cloud deployment and container tooling remain outside this learning map.
 
+## Pub-sub extension
+
+Read [publish-subscribe concepts](../../../knowledge/concepts/concurrency/publish-subscribe.md)
+and the [pub-sub design](PUBSUB.md). Source lives in [the service](../src/pubsub/service.go)
+and [HTTP adapter](../src/interfaces/pubsubapi/handler.go). The generic
+[admission wait policy](../../../concurrent/waiting/wait.go) releases a slot during
+polling and reacquires it before response processing. These components keep all
+mutable internal fields private.
+
+
+For the extension's additional language concepts, read
+[context/cancellation](../../../knowledge/concepts/go/context-and-cancellation.md)
+and [JSON/payload encoding](../../../knowledge/concepts/go/json-and-payloads.md).
+The HTTP adapter uses separate JSON response values rather than exporting broker
+fields. Its private polling lease lasts until response completion.

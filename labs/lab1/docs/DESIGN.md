@@ -9,6 +9,9 @@ Source/document placement follows [decision 0004](../../../knowledge/decisions/0
 Scope: the basic HTTP file server. See the [assignment guide](../AGENTS.md) and
 [official instructions](lab1_instructions.pdf) for requirements.
 
+The implemented pub-sub extension is described in [PUBSUB.md](PUBSUB.md). Its
+waiting admission exception supplements the ordinary ten-handler limit below.
+
 ## Package responsibilities
 
 - `src/main.go`: CLI configuration and connecting the components.
@@ -37,8 +40,8 @@ move the runtime data or require a new module/workspace entry.
 
 The directory name `interfaces` identifies HTTP-facing application adapters; it
 does not require every declaration to be a Go interface type. The group chose
-it instead of Go's special `internal` import boundary. A future `pubsubapi` belongs
-under it, but is not part of this increment.
+it instead of Go's special `internal` import boundary. The implemented `pubsubapi` sits beside `fileapi`; broker state lives separately
+in `src/pubsub`.
 
 This is an extensibility change. Workload and measurable scalability targets are
 still open under BL-001; no throughput improvement is claimed.
@@ -104,8 +107,9 @@ slot recovery with limits of both 2 and 10, and reject a zero limit.
 - Each admitted connection gets a goroutine under a semaphore, with at most the
   configured number of active handlers. One request/response is served per connection.
 - Malformed HTTP receives 400. An empty connection ending at EOF is closed.
-- The transport advertises connection closure, writes the response, and closes
-  its body. Handlers must return a non-nil, per-request response.
+- The transport advertises connection closure, writes and flushes the response,
+  then closes its original body. It prevents the serializer from closing that
+  body before the final flush. Handlers must return a non-nil, per-request response.
 - The transport owns the parsed request body. Cleanup closes the connection
   before the request body, so draining unread body bytes cannot keep a finished
   handler waiting on the client.

@@ -216,3 +216,68 @@ func (l *pipeListener) Close() error {
 }
 
 func (l *pipeListener) Addr() net.Addr { return &net.TCPAddr{} }
+
+func TestResponseBodyClosesAfterTheFinalWrite(t *testing.T) {
+	s, _ := New(1)
+	s.logger = log.New(io.Discard, "", 0)
+	closed := make(chan struct{})
+	s.SetFallback(func(*http.Request) *http.Response {
+		response := NewResponse(200, []byte("message"), "text/plain")
+		response.Body = &closingBody{reader: strings.NewReader("message"), closed: closed}
+		return response
+	})
+	client, conn := net.Pipe()
+	defer client.Close()
+	client.SetDeadline(time.Now().Add(3 * time.Second))
+	writing := make(chan struct{})
+	done := make(chan error, 1)
+	go func() { done <- s.handleConnection(&writeSignalConn{Conn: conn, writing: writing}) }()
+	if _, err := io.WriteString(client, "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-writing:
+	case <-time.After(3 * time.Second):
+		t.Fatal("response write did not start")
+	}
+	select {
+	case <-closed:
+		t.Fatal("body closed before the blocked response flush completed")
+	default:
+	}
+	response, err := http.ReadResponse(bufio.NewReader(client), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(io.Discard, response.Body); err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-closed:
+	default:
+		t.Fatal("body not closed after response completion")
+	}
+}
+
+type closingBody struct {
+	reader *strings.Reader
+	closed chan struct{}
+}
+
+func (b *closingBody) Read(p []byte) (int, error) { return b.reader.Read(p) }
+func (b *closingBody) Close() error               { close(b.closed); return nil }
+
+type writeSignalConn struct {
+	net.Conn
+	writing chan struct{}
+	once    sync.Once
+}
+
+func (c *writeSignalConn) Write(p []byte) (int, error) {
+	c.once.Do(func() { close(c.writing) })
+	return c.Conn.Write(p)
+}

@@ -8,7 +8,7 @@ understands and can explain the implementation.
 
 | Path | Purpose |
 | --- | --- |
-| [labs/lab1](labs/lab1/README.md) | Basic HTTP file server; build, run, and curl examples. |
+| [labs/lab1](labs/lab1/README.md) | HTTP file server and pub-sub broker; build, run, and curl examples. |
 | `labs/lab2/`, `labs/lab3/`, `labs/lab4/` | Placeholders for later assignments. |
 | [httpserver](httpserver/) | Reusable HTTP transport, routing, and middleware composition over TCP. |
 | [concurrent](concurrent/) | Reusable file-access, keyed-lock, and semaphore utilities. |

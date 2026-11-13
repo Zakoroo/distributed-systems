@@ -51,9 +51,9 @@ For collaborator setup, build/run commands, and curl examples, use the
 
 ## Optional pub-sub broker — PDF pages 2–3
 
-This bonus is worth up to 7 extra points. Its inclusion has not been selected by
-the group. If selected, it must share the file server's `http_server` executable
-and port and follow the same networking restrictions.
+The group selected and implemented this bonus. It shares the file server's
+`http_server` executable and port. See [pub-sub design](docs/PUBSUB.md) for private
+state, queue bounds, long polling, response formats, and admission handling.
 
 | Request | Required behavior |
 | --- | --- |
@@ -109,7 +109,7 @@ and port and follow the same networking restrictions.
 - The PDF requires POST storage and atomic visibility but does not explicitly
   choose append versus replacement semantics. The current implementation appends;
   do not present that choice as an assignment requirement.
-- Pub-sub, its delivery strategy, cloud deployment, and container tooling have
-  not been chosen. Optional requirements do not authorize implementing them.
+- Pub-sub uses long polling. Cloud deployment and container tooling remain
+  unselected. General connection reuse and slow-client redesign remain deferred.
 - Scalability work must respect the assignment's handler limit and networking
   rules. Define the workload and success criteria before redesigning.

@@ -27,8 +27,9 @@ is permitted provided the students understand the resulting work.
 - `labs/lab1/`: a Go HTTP server implemented over TCP, with bounded concurrent
   connection handling and GET/POST file operations. Code lives in `src/` and lab
   documents in `docs/`. Its `src/interfaces/fileapi/` package handles file requests;
-  `src/middleware/` applies rules defined in `src/filepolicy/`. Future `pubsubapi`
-  work remains deferred. Build the executable from `labs/lab1` with
+  `src/middleware/` applies rules defined in `src/filepolicy/`. `src/pubsub/` owns broker state and
+  `src/interfaces/pubsubapi/` adapts it to HTTP. Waiting event polls release their
+  admission slot temporarily. Build the executable from `labs/lab1` with
   `go build -o http_server ./src`; keep that working directory when running it.
 - `httpserver/`: the reusable HTTP transport/router module. It owns middleware
   composition and configurable request admission, with no dependency on any lab.

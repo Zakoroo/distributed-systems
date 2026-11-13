@@ -3,6 +3,7 @@ package httpserver
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/Zakoroo/distributed-systems/concurrent/semaphores"
+	"github.com/Zakoroo/distributed-systems/concurrent/waiting"
 )
 
 // Server dispatches requests through ordered endpoints and middleware.
@@ -48,7 +50,8 @@ func (s *Server) Start(address string) error {
 	return s.Serve(listener)
 }
 
-// Serve accepts connections up to the configured handler limit. The caller owns
+// Serve bounds active request work by the configured admission limit. Blocking
+// waiting.Wait callbacks temporarily yield their permit. The caller owns
 // listener; closing it stops acceptance while admitted requests finish normally.
 func (s *Server) Serve(listener net.Listener) error {
 	sem, err := semaphores.NewSemaphore(s.maxConcurrentRequests)
@@ -67,7 +70,12 @@ func (s *Server) Serve(listener net.Listener) error {
 		s.logger.Printf("Accepted new client connection: %v", conn.RemoteAddr())
 		go func() {
 			defer sem.Up()
-			if err := s.handleConnection(conn); err != nil {
+			ctx := waiting.WithPolicy(context.Background(), func(wait func() error) error {
+				sem.Up()
+				defer sem.Down()
+				return wait()
+			})
+			if err := s.serveConnection(ctx, conn); err != nil {
 				s.logger.Print(err)
 			}
 		}()
@@ -75,6 +83,10 @@ func (s *Server) Serve(listener net.Listener) error {
 }
 
 func (s *Server) handleConnection(conn net.Conn) error {
+	return s.serveConnection(context.Background(), conn)
+}
+
+func (s *Server) serveConnection(ctx context.Context, conn net.Conn) error {
 	var req *http.Request
 	defer func() {
 		// Close the socket first: Body.Close may try to drain unread input.
@@ -95,11 +107,16 @@ func (s *Server) handleConnection(conn net.Conn) error {
 		s.logger.Print(err)
 		response = NewResponse(http.StatusBadRequest, nil, "")
 	} else {
+		req = req.WithContext(ctx)
 		s.logger.Printf("method: %s, path: %s", req.Method, req.URL.Path)
 		response = s.Handle(req)
 	}
 	if response.Body != nil {
-		defer response.Body.Close()
+		body := response.Body
+		defer body.Close()
+		// Response.Write may close Body before its final buffered flush. Keep
+		// ownership until the entire write completes, including that flush.
+		response.Body = io.NopCloser(body)
 	}
 	response.Request = req
 	response.Close = true

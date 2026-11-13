@@ -1,11 +1,11 @@
-# Lab 1: basic HTTP file server
+# Lab 1: HTTP file server and pub-sub broker
 
 [Repository overview](../../README.md).
 
 The current basic implementation supports GET and POST for local files, with
-at most ten active request handlers. It uses raw TCP networking and closes each
+at most ten active request handlers, excluding waiting event polls. It uses raw TCP networking and closes each
 connection after one response. POST creates a file if absent and **appends** to
-an existing file. Pub-sub and cloud bonus work are not implemented yet.
+an existing file. The pub-sub broker shares the same port; cloud deployment remains future work.
 
 ## Build and start
 
@@ -109,3 +109,39 @@ For shared-module checks too, use the commands in the
 - [Server design](docs/DESIGN.md): package boundaries and request lifecycle.
 - [Knowledge base](../../knowledge/README.md): standalone explanations and diagrams.
 - [Agent guide](AGENTS.md): assignment constraints and working rules.
+
+## Pub-sub client example
+
+The broker runs in the same executable and on the same port as the file server.
+Subscribe from a client terminal:
+
+```sh
+curl -i -X POST 'http://127.0.0.1:8080/subscribe?topic=news'
+```
+
+The 201 response contains `{"id":1}` for the first subscription of a fresh server.
+Use the actual returned ID in subsequent commands. Start a poll in that terminal:
+
+```sh
+curl -i 'http://127.0.0.1:8080/events?topic=news&id=1'
+```
+
+While it waits, publish from another client terminal:
+
+```sh
+curl -i --data-binary 'hello' 'http://127.0.0.1:8080/publish?topic=news'
+```
+
+The poll returns a JSON array such as `[{"sequence":1,"data":"aGVsbG8="}]`.
+`data` is base64 for the original bytes (`hello` here). With no messages, the poll
+returns 204 after 15 seconds. Poll again to receive later messages.
+
+```sh
+curl -i -X POST 'http://127.0.0.1:8080/unsubscribe?topic=news&id=1'
+```
+
+A successful unsubscribe returns 200; subsequent polls with that ID return 404.
+Only one poll per subscriber may be active. Queues hold 64 pending events; a full
+queue skips new messages for that subscriber. Messages and subscriptions live in
+memory and disappear when the server stops. See [pub-sub design](docs/PUBSUB.md)
+for ordering, privacy, and admission details.

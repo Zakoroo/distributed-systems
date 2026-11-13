@@ -113,3 +113,12 @@ No items yet.
   - Decision: [accepted source/docs layout](knowledge/decisions/0004-lab1-source-and-docs.md).
   - Evidence: race-enabled module checks, `go vet`, executable build, and local
     link/navigation validation.
+
+- [x] **BL-012: Implement pub-sub service and HTTP adapters**
+  - Outcome: added private broker/topic/subscriber/event state, bounded subscriber
+    queues, ordered nonblocking fanout, long polling, unsubscribe wakeups, and the
+    four HTTP routes on the file server's port. Waiting requests temporarily
+    release admission only around their blocking channel wait.
+  - Decision: [pub-sub and admission](knowledge/decisions/0005-pubsub-and-waiting-admission.md).
+  - Evidence: race-enabled service, adapter, application-routing, admission-capacity,
+    and existing file-server tests. Updated client examples and learning material.
