@@ -51,9 +51,10 @@ For collaborator setup, build/run commands, and curl examples, use the
 
 ## Optional pub-sub broker — PDF pages 2–3
 
-The group selected and implemented this bonus. It shares the file server's
-`http_server` executable and port. See [pub-sub design](docs/PUBSUB.md) for private
-state, queue bounds, long polling, response formats, and admission handling.
+The group approved a smaller replacement after removing the previous design.
+`src/interfaces/pubsubapi/broker.go` contains its state and four HTTP handlers;
+[PUBSUB.md](docs/PUBSUB.md) explains them. Waiting polls count toward the existing
+ten-handler limit. The bonus shares the file server's executable and port.
 
 | Request | Required behavior |
 | --- | --- |
@@ -109,7 +110,14 @@ state, queue bounds, long polling, response formats, and admission handling.
 - The PDF requires POST storage and atomic visibility but does not explicitly
   choose append versus replacement semantics. The current implementation appends;
   do not present that choice as an assignment requirement.
-- Pub-sub uses long polling. Cloud deployment and container tooling remain
-  unselected. General connection reuse and slow-client redesign remain deferred.
+- The old broker, context wait policy, and explicit request-slot experiment are
+  withdrawn. Do not restore them automatically. The small broker uses one mutex,
+  bounded subscriber channels, and an event/timeout select. Clients keep one
+  events request per ID outstanding and finish reading before polling again.
+  The reader flag rejects overlapping waits; it does not cover network writing.
+  [Decision 0007](../../knowledge/decisions/0007-return-to-basic-server.md) records
+  the accepted simplicity tradeoff: ten waiting polls can delay a publisher.
+- Cloud deployment, container tooling, connection reuse, and slow-client redesign
+  remain outside this increment.
 - Scalability work must respect the assignment's handler limit and networking
   rules. Define the workload and success criteria before redesigning.

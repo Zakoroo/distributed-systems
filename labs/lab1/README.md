@@ -1,11 +1,12 @@
-# Lab 1: HTTP file server and pub-sub broker
+# Lab 1: HTTP file server and small pub-sub broker
 
 [Repository overview](../../README.md).
 
 The current basic implementation supports GET and POST for local files, with
-at most ten active request handlers, excluding waiting event polls. It uses raw TCP networking and closes each
+at most ten active request handlers. It uses raw TCP networking and closes each
 connection after one response. POST creates a file if absent and **appends** to
-an existing file. The pub-sub broker shares the same port; cloud deployment remains future work.
+an existing file. The small pub-sub broker shares the executable and port. Event
+polls count toward the same ten-handler limit. Cloud deployment remains deferred.
 
 ## Build and start
 
@@ -93,6 +94,7 @@ lab1/
 ├── src/                  Executable, tests, and application packages
 │   ├── main.go
 │   ├── interfaces/fileapi/
+│   ├── interfaces/pubsubapi/  One broker file and its tests
 │   ├── middleware/
 │   └── filepolicy/
 ├── docs/                 Assignment, design, and learning notes
@@ -107,41 +109,44 @@ For shared-module checks too, use the commands in the
 
 - [Learning map](docs/LEARNING.md): reading order, concepts, and source links.
 - [Server design](docs/DESIGN.md): package boundaries and request lifecycle.
+- [Broker walkthrough](docs/PUBSUB.md): subscriber queues, message publication,
+  waiting, unsubscribe, and the ordinary handler limit.
 - [Knowledge base](../../knowledge/README.md): standalone explanations and diagrams.
 - [Agent guide](AGENTS.md): assignment constraints and working rules.
 
 ## Pub-sub client example
 
-The broker runs in the same executable and on the same port as the file server.
-Subscribe from a client terminal:
+The broker uses the same executable and port. Subscribe in a client terminal:
 
 ```sh
-curl -i -X POST 'http://127.0.0.1:8080/subscribe?topic=news'
+curl -i -X POST 'http://127.0.0.1:8080/subscribe?topic=weather'
 ```
 
-The 201 response contains `{"id":1}` for the first subscription of a fresh server.
-Use the actual returned ID in subsequent commands. Start a poll in that terminal:
+The response is 201 with an ID such as `{"id":1}`. Use the actual returned ID.
+Ask for one event in that terminal:
 
 ```sh
-curl -i 'http://127.0.0.1:8080/events?topic=news&id=1'
+curl -i 'http://127.0.0.1:8080/events?topic=weather&id=1'
 ```
 
-While it waits, publish from another client terminal:
+If no event is queued, this request waits. Publish from another terminal:
 
 ```sh
-curl -i --data-binary 'hello' 'http://127.0.0.1:8080/publish?topic=news'
+curl -i --data-binary 'rain' 'http://127.0.0.1:8080/publish?topic=weather'
 ```
 
-The poll returns a JSON array such as `[{"sequence":1,"data":"aGVsbG8="}]`.
-`data` is base64 for the original bytes (`hello` here). With no messages, the poll
-returns 204 after 15 seconds. Poll again to receive later messages.
+Publication returns 200. The poll returns 200 with one JSON object such as
+`{"sequence":1,"data":"cmFpbg=="}`; the data is base64 for `rain`. JSON property
+order does not matter. Poll again after finishing the response. An empty wait
+returns 204 after the configured 15-second timeout; it does not unsubscribe you.
 
 ```sh
-curl -i -X POST 'http://127.0.0.1:8080/unsubscribe?topic=news&id=1'
+curl -i -X POST 'http://127.0.0.1:8080/unsubscribe?topic=weather&id=1'
 ```
 
-A successful unsubscribe returns 200; subsequent polls with that ID return 404.
-Only one poll per subscriber may be active. Queues hold 64 pending events; a full
-queue skips new messages for that subscriber. Messages and subscriptions live in
-memory and disappear when the server stops. See [pub-sub design](docs/PUBSUB.md)
-for ordering, privacy, and admission details.
+Unsubscribe returns 200; later polls for that ID return 404. Clients keep one
+outstanding poll per ID and read its complete response before polling again.
+Messages and subscriptions are in memory. Each queue holds 64 events and skips
+new messages when full. **Waiting polls count toward the ordinary ten-handler
+limit:** ten waiting polls can delay a publisher until a handler finishes.
+See the [walkthrough](docs/PUBSUB.md) for the code and these deliberate limits.

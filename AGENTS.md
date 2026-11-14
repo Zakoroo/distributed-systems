@@ -27,12 +27,14 @@ is permitted provided the students understand the resulting work.
 - `labs/lab1/`: a Go HTTP server implemented over TCP, with bounded concurrent
   connection handling and GET/POST file operations. Code lives in `src/` and lab
   documents in `docs/`. Its `src/interfaces/fileapi/` package handles file requests;
-  `src/middleware/` applies rules defined in `src/filepolicy/`. `src/pubsub/` owns broker state and
-  `src/interfaces/pubsubapi/` adapts it to HTTP. Waiting event polls release their
-  admission slot temporarily. Build the executable from `labs/lab1` with
+  `src/middleware/` applies rules defined in `src/filepolicy/`. The small broker
+  and its four HTTP handlers live together in `src/interfaces/pubsubapi/`;
+  waiting polls count toward the ordinary ten-handler limit. See the
+  [broker walkthrough](labs/lab1/docs/PUBSUB.md). Build from `labs/lab1` with
   `go build -o http_server ./src`; keep that working directory when running it.
 - `httpserver/`: the reusable HTTP transport/router module. It owns middleware
   composition and configurable request admission, with no dependency on any lab.
+  Handlers use `func(*http.Request) *http.Response`; admission stays in the server.
 - `labs/lab2/`, `labs/lab3/`, `labs/lab4/`: currently placeholders for later labs.
 - `concurrent/`: a reusable Go module containing file access utilities,
   `locks.LockMap[K]` keyed read/write locking, and semaphores. Changes here may

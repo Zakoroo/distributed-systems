@@ -13,7 +13,7 @@ connects the topics to the actual implementation.
 | [Go fundamentals](go/go-fundamentals.md) | Types, functions, interfaces, generics, errors, modules, CLI arguments, tests, and regex. |
 | [Networking and HTTP](networking/networking-and-http.md) | TCP, HTTP messages, request routing, and middleware. |
 | [Files and I/O](files/files-and-io.md) | Streams, buffering, file modes, paths, and validation. |
-| [Concurrency](concurrency/concurrency.md) | Goroutines, channels, mutexes, semaphores, keyed locks, and atomic operations. |
+| [Concurrency](concurrency/concurrency.md) | Goroutines, channels, mutexes, semaphores, keyed locks, admission while waiting, and publish-subscribe. |
 
 ## Reading examples
 

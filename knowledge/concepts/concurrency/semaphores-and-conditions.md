@@ -68,3 +68,7 @@ it does not give each one a permit.
 See [sync.Cond](https://pkg.go.dev/sync#Cond). A semaphore does not by itself
 bound queued connections, input bytes, or how long an admitted worker waits.
 Those require separate resource policies.
+
+For a request that temporarily releases admission while awaiting a message, see
+[waiting goroutines and admission limits](waiting-goroutines-and-admission.md).
+That note distinguishes the permit, the waiting goroutine, and its connection.

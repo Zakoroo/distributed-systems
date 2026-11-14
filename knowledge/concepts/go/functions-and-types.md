@@ -51,6 +51,22 @@ Any type with `Greet() string` can be used as a Greeter. This lets code work wit
 a capability instead of a particular implementation. Standard examples are
 `io.Reader`, `io.Writer`, and `net.Conn`.
 
+For a small complete set of declarations:
+
+```go
+type Person struct {
+	name string
+}
+
+func (p Person) Greet() string { return "Hello, " + p.name }
+
+func sayHello(g Greeter) string { return g.Greet() }
+```
+
+`sayHello(Person{name: "Ada"})` returns `"Hello, Ada"`. `Person` is a concrete
+struct that stores data. `Greeter` describes just the method the caller needs.
+Passing the value to the function does not create a wrapper or goroutine.
+
 A struct can also **embed** a type as an unnamed field. For example,
 `struct{ io.Reader }` exposes the embedded reader's `Read` method. A wrapper can
 reuse that reading behavior while adding its own `Close` method.

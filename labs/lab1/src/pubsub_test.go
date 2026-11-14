@@ -10,37 +10,45 @@ import (
 	"testing"
 )
 
-func TestPubSubRoutesUseTheApplicationServer(t *testing.T) {
-	s, err := newServer(t.TempDir())
+func TestPubSubRoutesShareTheFileServer(t *testing.T) {
+	server, err := newServer(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	call := func(method, path, body string, status int) *http.Response {
+	call := func(method, path, body string, status int) []byte {
 		t.Helper()
 		req := httptest.NewRequest(method, path, strings.NewReader(body))
-		t.Cleanup(func() { req.Body.Close() })
-		response := s.Handle(req)
-		t.Cleanup(func() { response.Body.Close() })
-		if response.StatusCode != status {
-			t.Fatalf("%s %s: status %d, want %d", method, path, response.StatusCode, status)
+		defer req.Body.Close()
+		response := server.Handle(req)
+		defer response.Body.Close()
+		data, err := io.ReadAll(response.Body)
+		if err != nil || response.StatusCode != status {
+			t.Fatalf("%s %s: status=%d err=%v", method, path, response.StatusCode, err)
 		}
-		return response
+		return data
 	}
-	response := call("POST", "/subscribe?topic=integration", "", 201)
-	var subscription struct {
-		ID uint `json:"id"`
+	data := call("POST", "/subscribe?topic=weather/in-town", "", 201)
+	var subscription struct{ ID uint }
+	if err := json.Unmarshal(data, &subscription); err != nil || subscription.ID == 0 {
+		t.Fatal("invalid subscriber ID", err)
 	}
-	if err := json.NewDecoder(response.Body).Decode(&subscription); err != nil {
-		t.Fatal(err)
+	query := "?topic=weather/in-town&id=" + strconv.FormatUint(uint64(subscription.ID), 10)
+	call("POST", "/publish?topic=weather/in-town", "rain", 200)
+	data = call("GET", "/events"+query, "", 200)
+	var event struct {
+		Sequence uint64
+		Data     []byte
 	}
-	path := "?topic=integration&id=" + strconv.FormatUint(uint64(subscription.ID), 10)
-	call("POST", "/publish?topic=integration", "hello", 200)
-	response = call("GET", "/events"+path, "", 200)
-	body, err := io.ReadAll(response.Body)
-	if err != nil || !strings.Contains(string(body), `"data":"aGVsbG8="`) {
-		t.Fatalf("events %s: %v", body, err)
+	if err := json.Unmarshal(data, &event); err != nil || event.Sequence != 1 || string(event.Data) != "rain" {
+		t.Fatalf("invalid event %s: %v", data, err)
 	}
-	call("GET", "/publish?topic=integration", "", 501)
-	call("POST", "/unsubscribe"+path, "", 200)
-	call("GET", "/events"+path, "", 404)
+	call("POST", "/unsubscribe"+query, "", 200)
+	call("GET", "/events"+query, "", 404)
+	call("GET", "/publish?topic=weather/in-town", "", 501)
+	call(http.MethodPut, "/events"+query, "", 501)
+	// The normal file fallback still works alongside the four bonus endpoints.
+	call("POST", "/notes.txt", "hello", 200)
+	if got := string(call("GET", "/notes.txt", "", 200)); got != "hello" {
+		t.Fatalf("file fallback returned %q", got)
+	}
 }

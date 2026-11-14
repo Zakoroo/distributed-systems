@@ -23,8 +23,10 @@ so the runtime `public/` directory remains relative to the correct location.
    and [files and paths](../../../knowledge/concepts/files/files-and-paths.md).
 4. Read [routing and middleware](../../../knowledge/concepts/networking/routing-and-middleware.md)
    and the [regex guide](../../../knowledge/concepts/regex-basics-in-go.md).
-5. Follow the [concurrency branch](../../../knowledge/concepts/concurrency/concurrency.md)
-   in its numbered order.
+5. Follow the basic notes (1–4) in the
+   [concurrency branch](../../../knowledge/concepts/concurrency/concurrency.md).
+   For the bonus, add its pub-sub note. Admission-release and scheduler material
+   remain optional background.
 6. Use [testing and evidence](../../../knowledge/concepts/go/testing.md) to understand
    how the design is checked. Then trace a request using the walkthrough below.
 
@@ -104,20 +106,24 @@ server's configuration must be distinguished from the assignment's chosen cap.
 
 Connection reuse and slow-client limits remain deferred work. Their vocabulary
 is introduced in the networking and concurrency notes; those features are not
-claimed as implemented. Cloud deployment and container tooling remain outside this learning map.
+claimed as implemented. Cloud deployment and container tooling remain outside
+this learning map.
 
-## Pub-sub extension
+## Small pub-sub extension
 
-Read [publish-subscribe concepts](../../../knowledge/concepts/concurrency/publish-subscribe.md)
-and the [pub-sub design](PUBSUB.md). Source lives in [the service](../src/pubsub/service.go)
-and [HTTP adapter](../src/interfaces/pubsubapi/handler.go). The generic
-[admission wait policy](../../../concurrent/waiting/wait.go) releases a slot during
-polling and reacquires it before response processing. These components keep all
-mutable internal fields private.
+Read [pub-sub concepts](../../../knowledge/concepts/concurrency/publish-subscribe.md),
+then [Alice and Bob's walkthrough](PUBSUB.md#start-with-alice-and-bob). Start with
+the private structs and `HandleSubscribe` in
+[broker.go](../src/interfaces/pubsubapi/broker.go), then read publication, event
+waiting, and unsubscribe. The broker and all four HTTP handlers are in that file.
 
+The additional concepts are buffered channels as queues, `select` with a timeout,
+the second receive value for a closed channel, and
+[JSON/base64](../../../knowledge/concepts/go/json-and-payloads.md). A single mutex
+protects membership, sequence assignment, sends, and closes. Events waits outside
+that mutex, in the existing HTTP goroutine, while still counting against ten.
 
-For the extension's additional language concepts, read
-[context/cancellation](../../../knowledge/concepts/go/context-and-cancellation.md)
-and [JSON/payload encoding](../../../knowledge/concepts/go/json-and-payloads.md).
-The HTTP adapter uses separate JSON response values rather than exporting broker
-fields. Its private polling lease lasts until response completion.
+The reader flag prevents overlapping queue waits; clients must finish reading one
+response before requesting the next. [Broker tests](../src/interfaces/pubsubapi/broker_test.go)
+exercise queue bounds, ordering, wakeups, error codes, and concurrency. The
+[application check](../src/pubsub_test.go) verifies routes and the file fallback.

@@ -21,6 +21,11 @@ its JSON spelling, not Go access visibility. This does not require exposing a
 service's internal fields: construct a separate response value containing only
 what the client should receive. The response type itself can stay private.
 
+A `map[string]any` is another way to build a response value: the keys name the
+JSON properties, while `any` allows their values to have different Go types.
+For example, `map[string]any{"count": 3, "label": "rain"}` holds a number and a
+string. This temporary response map need not be the map that stores service state.
+
 JSON has no raw byte-string type. Go encodes `[]byte` using base64, a text
 representation of bytes: the bytes for `hello` become `"aGVsbG8="`. This is why
 an API's data property may differ from the text that was published. A non-nil

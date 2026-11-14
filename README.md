@@ -8,7 +8,7 @@ understands and can explain the implementation.
 
 | Path | Purpose |
 | --- | --- |
-| [labs/lab1](labs/lab1/README.md) | HTTP file server and pub-sub broker; build, run, and curl examples. |
+| [labs/lab1](labs/lab1/README.md) | HTTP file server and small pub-sub broker; build, run, and curl examples. |
 | `labs/lab2/`, `labs/lab3/`, `labs/lab4/` | Placeholders for later assignments. |
 | [httpserver](httpserver/) | Reusable HTTP transport, routing, and middleware composition over TCP. |
 | [concurrent](concurrent/) | Reusable file-access, keyed-lock, and semaphore utilities. |
@@ -47,7 +47,7 @@ go build -o http_server ./src
 ```
 
 Leave that terminal running. See the [Lab 1 README](labs/lab1/README.md) for curl
-commands to create, read, and append files, plus examples of error responses.
+commands for files, pub-sub, and error responses.
 Use **Ctrl+C** in the server terminal to stop it.
 
 ## Check the implementation

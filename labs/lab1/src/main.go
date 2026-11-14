@@ -11,7 +11,6 @@ import (
 	"github.com/Zakoroo/distributed-systems/labs/lab1/src/interfaces/fileapi"
 	"github.com/Zakoroo/distributed-systems/labs/lab1/src/interfaces/pubsubapi"
 	"github.com/Zakoroo/distributed-systems/labs/lab1/src/middleware"
-	"github.com/Zakoroo/distributed-systems/labs/lab1/src/pubsub"
 )
 
 const (
@@ -48,26 +47,21 @@ func newServer(root string) (*httpserver.Server, error) {
 	}
 	files := fileapi.New(root)
 
-	broker, err := pubsub.New(64)
+	broker, err := pubsubapi.New(64, 15*time.Second)
 	if err != nil {
 		return nil, err
 	}
-	api, err := pubsubapi.New(broker, 15*time.Second)
-	if err != nil {
+	if err := s.RegisterEndpoint("/subscribe", broker.HandleSubscribe); err != nil {
 		return nil, err
 	}
-	for _, endpoint := range []struct {
-		path    string
-		handler httpserver.Handler
-	}{
-		{"/subscribe", api.HandleSubscribe},
-		{"/unsubscribe", api.HandleUnsubscribe},
-		{"/publish", api.HandlePublish},
-		{"/events", api.HandleEvents},
-	} {
-		if err := s.RegisterEndpoint(endpoint.path, endpoint.handler); err != nil {
-			return nil, err
-		}
+	if err := s.RegisterEndpoint("/unsubscribe", broker.HandleUnsubscribe); err != nil {
+		return nil, err
+	}
+	if err := s.RegisterEndpoint("/publish", broker.HandlePublish); err != nil {
+		return nil, err
+	}
+	if err := s.RegisterEndpoint("/events", broker.HandleEvents); err != nil {
+		return nil, err
 	}
 
 	// File validation belongs only to the fallback, leaving custom endpoints free

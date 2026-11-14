@@ -105,8 +105,7 @@ func (s *Server) Handle(req *http.Request) *http.Response {
 		}
 	}
 	s.mu.RUnlock()
-	handler = Chain(handler, middleware...)
-	return handler(req)
+	return Chain(handler, middleware...)(req)
 }
 
 // Chain applies middleware in the supplied order: Chain(h, a, b) runs a(b(h)).

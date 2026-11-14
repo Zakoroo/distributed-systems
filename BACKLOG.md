@@ -114,11 +114,15 @@ No items yet.
   - Evidence: race-enabled module checks, `go vet`, executable build, and local
     link/navigation validation.
 
-- [x] **BL-012: Implement pub-sub service and HTTP adapters**
-  - Outcome: added private broker/topic/subscriber/event state, bounded subscriber
-    queues, ordered nonblocking fanout, long polling, unsubscribe wakeups, and the
-    four HTTP routes on the file server's port. Waiting requests temporarily
-    release admission only around their blocking channel wait.
-  - Decision: [pub-sub and admission](knowledge/decisions/0005-pubsub-and-waiting-admission.md).
-  - Evidence: race-enabled service, adapter, application-routing, admission-capacity,
-    and existing file-server tests. Updated client examples and learning material.
+- [x] **BL-012: Restart pub-sub with a small, explainable implementation**
+  - Outcome: broker state and four HTTP handlers live in one Lab 1 package/file,
+    with one mutex, bounded subscriber channels, and one-event long polling.
+    The shared server and ordinary ten-handler limit are unchanged.
+  - Tradeoff: waiting polls occupy handlers; ten such polls can delay a publisher.
+    Clients keep one outstanding poll per ID and finish reading before polling again.
+  - Decision: [reset and small replacement](knowledge/decisions/0007-return-to-basic-server.md).
+    The earlier context-policy and explicit-slot designs remain withdrawn.
+  - Evidence: [broker checks](labs/lab1/src/interfaces/pubsubapi/broker_test.go) cover
+    queues, wakeups, validation, payloads, order, and membership concurrency;
+    [application checks](labs/lab1/src/pubsub_test.go) cover routes and file operations.
+    The [walkthrough](labs/lab1/docs/PUBSUB.md) and README describe the simple limits.

@@ -13,9 +13,13 @@ official assignment requirements or general concept notes.
    the reusable `httpserver` module, application adapters, middleware, and file policy.
 4. [0004: Lab 1 source and docs](0004-lab1-source-and-docs.md): `src/` and `docs/`
    folders, stable module/agent-guide placement, and updated build commands.
-
 5. [0005: Pub-sub and waiting admission](0005-pubsub-and-waiting-admission.md):
-   private broker state, subscriber queues, long polling, and publisher capacity.
+   withdrawn implementation; retained as historical context.
+6. [0006: Explicit request slots](0006-explicit-request-slots.md): a visible
+   admission experiment, withdrawn with the bonus reset.
+7. [0007: Return to the basic server](0007-return-to-basic-server.md): restored
+   the pre-bonus server, then added the approved one-package broker using the
+   ordinary handler limit.
 
 Use the next available number for a significant new decision. State whether it
 is proposed or accepted, its context, alternatives, and consequences. Mark a

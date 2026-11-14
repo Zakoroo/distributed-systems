@@ -18,7 +18,9 @@ without depending on the current application design.
 6. [Regular expressions](../regex-basics-in-go.md): reading text patterns, groups,
    and Go's matching API.
 
-7. [Context and cancellation](context-and-cancellation.md): deadlines, cooperative
-   stopping, and request-scoped capabilities.
+## Optional background for later work
+
+7. [Context and cancellation](context-and-cancellation.md): deadlines and
+   cooperative stopping.
 8. [JSON and byte payloads](json-and-payloads.md): response encoding, field tags,
    private service state, and base64 data.

@@ -24,11 +24,12 @@ Done; it does not forcibly terminate goroutines. Code must observe the signal.
 `context.Canceled` and `context.DeadlineExceeded` distinguish the two outcomes.
 Call the returned cancel function to release timeout resources promptly.
 
-Derived contexts inherit cancellation and values from their parents. A private
-key type can carry a request-scoped capability without exposing mutable state.
-For example, a caller may supply a callback that accounts for a blocking wait;
-the waiting algorithm need not know about HTTP or semaphore implementations.
-Those callbacks still need explicit ownership and synchronous-use contracts.
+Derived contexts inherit cancellation and values from their parents. Deriving a
+timeout context does not start your function in a new goroutine or make all its
+operations cancellable: the function must still observe Done where it can wait.
+Context values can carry request metadata, but resource ownership is often easier
+to follow as an explicit function argument. Cancellation and admission are
+separate responsibilities; see [waiting and admission](../concurrency/waiting-goroutines-and-admission.md).
 
 A context attached to a raw parsed HTTP request does not automatically observe a
 client disconnect. That integration must be implemented by the transport or
