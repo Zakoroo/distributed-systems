@@ -106,8 +106,12 @@ server's configuration must be distinguished from the assignment's chosen cap.
 
 Connection reuse and slow-client limits remain deferred work. Their vocabulary
 is introduced in the networking and concurrency notes; those features are not
-claimed as implemented. Cloud deployment and container tooling remain outside
-this learning map.
+claimed as implemented. Cloud deployment remains outside this learning map.
+
+The [Dockerfile](../Dockerfile) packages the prebuilt server. Its `WORKDIR` and
+directory-creation step ensure that relative `./public` exists in the container.
+Read [working directories and container filesystems](../../../knowledge/concepts/files/files-and-paths.md#working-directories-in-containers),
+then use the [container build/run commands](../README.md#run-in-docker).
 
 ## Small pub-sub extension
 

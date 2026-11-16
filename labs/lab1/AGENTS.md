@@ -17,6 +17,9 @@ For collaborator setup, build/run commands, and curl examples, use the
 - From `labs/lab1`, build with `go build -o http_server ./src` and run
   `./http_server 8080`. The runtime `public/` directory is relative to that working
   directory, not to `src/`.
+- The Dockerfile packages a prebuilt binary, runs from `/app`, and creates
+  `/app/public`. Its default `PORT` is 80. See the
+  [container commands](README.md#run-in-docker); rebuild/recreate to apply image changes.
 
 ## Required HTTP server — PDF pages 1–2
 
@@ -117,7 +120,6 @@ ten-handler limit. The bonus shares the file server's executable and port.
   The reader flag rejects overlapping waits; it does not cover network writing.
   [Decision 0007](../../knowledge/decisions/0007-return-to-basic-server.md) records
   the accepted simplicity tradeoff: ten waiting polls can delay a publisher.
-- Cloud deployment, container tooling, connection reuse, and slow-client redesign
-  remain outside this increment.
+- Cloud deployment, connection reuse, and slow-client redesign remain deferred.
 - Scalability work must respect the assignment's handler limit and networking
   rules. Define the workload and success criteria before redesigning.

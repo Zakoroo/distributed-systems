@@ -72,11 +72,22 @@ func newServer(root string) (*httpserver.Server, error) {
 }
 
 func parsePort() (int, error) {
-	if len(os.Args) != 2 {
-		fmt.Printf("Usage: %v <port>\n", os.Args[0])
-		return 0, fmt.Errorf("missing argument <port>")
+	var port int
+	var portString string
+	var err error
+
+	if len(os.Args) == 2 {
+		portString = os.Args[1]
+	} else {
+		portString = os.Getenv("PORT")
+
+		if portString == "" {
+			fmt.Printf("Usage: %v <port>\n", os.Args[0])
+			return 0, fmt.Errorf("missing argument <port>")
+		}
 	}
-	port, err := strconv.Atoi(os.Args[1])
+
+	port, err = strconv.Atoi(portString)
 	if err != nil {
 		return 0, err
 	}

@@ -25,9 +25,42 @@ directory: `./public/` is relative to the **working directory**, not the source 
 binary location. The server does not create that directory itself. Both `public/`
 and the compiled executable are ignored by Git.
 
-The port is a required argument. If 8080 is occupied, choose another port, such
-as 8081, and use that same port in the client commands below. Leave the server
+For a terminal run, pass the port as shown above. If 8080 is occupied, choose
+another port, such as 8081, and use it in the client commands below. Leave the server
 running while using a second terminal. Stop it with **Ctrl+C**.
+
+## Run in Docker
+
+From the repository root, build the binary and then the image:
+
+```sh
+cd labs/lab1
+go build -o http_server ./src
+docker build -t http_server .
+docker run --rm -p 8080:80 http_server
+```
+
+The image copies the compiled binary. Rebuild both after Go source changes.
+The server also accepts `PORT` when no command-line port is supplied; the
+Dockerfile sets it to 80. `-p 8080:80` forwards host port 8080 to container port 80.
+Stop any old container already using host port 8080 before starting the new one.
+Rebuilding an image does not change a container that is already running.
+
+The Dockerfile sets `WORKDIR /app` and creates `/app/public`. Consequently,
+`POST /hello.txt` writes `/app/public/hello.txt` inside the container. Creating
+`public/` on the host alone does not create it inside the image. See
+[working directories and container filesystems](../../knowledge/concepts/files/files-and-paths.md#working-directories-in-containers).
+
+Try the running container from another terminal:
+
+```sh
+curl -i --data-binary 'Hello world!' http://localhost:8080/hello.txt
+curl -i http://localhost:8080/hello.txt
+```
+
+Files stay in this container's filesystem unless storage is mounted separately;
+removing the container removes those files. The `--rm` option removes this demo
+container when it exits.
 
 ## Use curl as a client
 
