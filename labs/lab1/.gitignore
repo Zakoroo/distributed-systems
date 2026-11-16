@@ -1,6 +1,5 @@
 # Compiled files
 http_server
-lab1
 
 # Runtime resources
 public
@@ -8,3 +7,6 @@ public
 # IDE configurations
 .zed
 .vscode
+
+# Key for cloud environemnt
+*.pem
