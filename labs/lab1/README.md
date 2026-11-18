@@ -8,6 +8,8 @@ connection after one response. POST creates a file if absent and **appends** to
 an existing file. The small pub-sub broker shares the executable and port. Event
 polls count toward the same ten-handler limit. Cloud deployment remains deferred.
 
+For the presentation, see the [Slidev demo deck](demo/README.md).
+
 ## Build and start
 
 First complete the [workspace setup](../../README.md#setup). Then, in a terminal
