@@ -17,13 +17,12 @@ Knowledge base
 │   ├── Networking and HTTP
 │   ├── Files and I/O
 │   └── Concurrency
-├── Lab 1 learning map
+├── Lab 1 design
 └── Design decisions
 ```
 
 - [Concept notes](concepts/README.md): subject indexes and independent explanations.
-- [Lab 1 learning map](../labs/lab1/docs/LEARNING.md): a study path, concept coverage,
-  and a request walkthrough tied to the current code.
+- [Lab 1 design](../labs/lab1/docs/DESIGN.md): request handling, the broker, and links to source and tests.
 - [Design decisions](decisions/decisions.md): adopted choices and their reasoning.
 
 Each concept has one primary parent index. Useful cross-links are allowed:
@@ -42,7 +41,7 @@ beside the corresponding lab and link them here.
 
 | Lab | Implementation | Notes | Official instructions |
 | --- | --- | --- | --- |
-| 1 | [Lab 1](../labs/lab1) | [Learning map](../labs/lab1/docs/LEARNING.md), [agent guide](../labs/lab1/AGENTS.md), [server design](../labs/lab1/docs/DESIGN.md) | [Instructions (PDF)](../labs/lab1/docs/lab1_instructions.pdf) |
+| 1 | [Lab 1](../labs/lab1) | [Design](../labs/lab1/docs/DESIGN.md), [agent guide](../labs/lab1/AGENTS.md) | [Instructions (PDF)](../labs/lab1/docs/lab1_instructions.pdf) |
 | 2 | [Lab 2](../labs/lab2) (placeholder) | None yet | Pending |
 | 3 | [Lab 3](../labs/lab3) (placeholder) | None yet | Pending |
 | 4 | [Lab 4](../labs/lab4) (placeholder) | None yet | Pending |

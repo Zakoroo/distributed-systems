@@ -1,177 +1,68 @@
-# Lab 1 server design
+# Lab 1 design
 
-Status: Approved and implemented for routing, middleware, and generic keyed
-locking. Connection reuse is a separate increment; slow-client improvements are
-explicitly delayed. See [decision 0002](../../../knowledge/decisions/0002-lab1-server-and-locking.md)
-and the package-boundary update in [decision 0003](../../../knowledge/decisions/0003-shared-server-and-lab1-packages.md).
-Source/document placement follows [decision 0004](../../../knowledge/decisions/0004-lab1-source-and-docs.md).
+[main.go](../src/main.go) configures the shared HTTP server. The server accepts
+raw TCP connections, takes a semaphore permit, then starts a goroutine.
+Each goroutine parses one HTTP request, sends the response, closes the
+connection, and releases the permit. Lab 1 allows up to ten workers, including
+workers waiting in an events poll.
 
-Scope: the basic HTTP file server. The small bonus broker is covered separately
-in [PUBSUB.md](PUBSUB.md). See the [assignment guide](../AGENTS.md) and
-[official instructions](lab1_instructions.pdf) for requirements.
+## Routing and middleware
 
-## Package responsibilities
+The router chooses the first endpoint whose pattern matches the whole URL path.
+Query parameters are separate. When no endpoint matches, the router uses the
+file fallback. Matching middleware runs in registration order. Each middleware
+wraps a handler and can return a response early or call the handler it wraps.
 
-- `src/main.go`: CLI configuration and connecting the components.
-- Root `httpserver/`: raw TCP networking, request parsing, ordered routing,
-  middleware composition, response writing, configurable admission, and connection
-  cleanup. It has its own `go.mod` and depends only on generic concurrency code.
-- `src/interfaces/fileapi/`: application GET/POST operations using the reusable file
-  manager and `filepolicy` content types.
-- `src/middleware/`: the basic lab's method, filename/depth, and extension checks.
-- `src/filepolicy/`: pure filename/depth rules and extension-to-content-type mappings,
-  shared by the application handlers and middleware.
-- `concurrent/locks/`: generic `LockMap[K comparable]` read/write synchronization.
-- `concurrent/files/`: synchronized file operations, without application-specific
-  naming or path-validation rules.
+The method check applies to every route. Path and extension checks wrap the
+file fallback. [Application wiring](../src/main.go) · [Validation middleware](../src/middleware/)
 
-`main` imports the application packages and shared server. Middleware and file
-handlers both import `filepolicy`; neither imports the other. `httpserver` and
-`concurrent` never import Lab 1. Sub-packages inside Lab 1 share its existing
-module. The workspace connects all three modules.
+## File access
 
-The module file and agent guide stay at the Lab 1 root. Source and tests live in
-`src/`; instructions and learning/design documents live in `docs/`. Build from
-`labs/lab1` with `go build -o http_server ./src` and run the executable from there,
-so the relative runtime path `./public/` keeps its meaning. Moving source does not
-move the runtime data or require a new module/workspace entry.
+The URL path is relative to `./public/`. POST reads the request body before
+taking the file's exclusive lock, then creates or appends to the file.
+GET holds a shared lock through the full read. Readers of the same file can
+overlap, and a reader sees a complete version before or after an append.
+Different normalized paths use separate locks.
 
-The directory name `interfaces` identifies HTTP-facing application adapters; it
-does not require every declaration to be a Go interface type. The group chose
-it instead of Go's special `internal` import boundary. The small `pubsubapi` now
-lives beside `fileapi`, with its broker state and HTTP handlers in one file.
-The reusable transport and handler signature are unchanged.
+Missing files return 404 on GET. Invalid paths, unsupported extensions, and
+file operation errors return 400. Unsupported methods return 501.
+[File handler](../src/interfaces/fileapi/handler.go)
 
-This is an extensibility change. Workload and measurable scalability targets are
-still open under BL-001; no throughput improvement is claimed.
+[File tests](../src/files_test.go) cover validation, response types, and complete
+reads during concurrent appends.
 
-## Shared `httpserver` endpoint and middleware API
+## Pub-sub broker
 
-```go
-type Handler func(*http.Request) *http.Response
-type Middleware func(Handler) Handler
+The [broker](../src/interfaces/pubsubapi/broker.go) stores topics and subscriber
+queues in memory. A subscription creates an ID and a buffered channel with
+space for 64 events. A restart clears broker state.
 
-func New(maxConcurrentRequests uint) (*Server, error)
-func (s *Server) RegisterEndpoint(pattern string, handler Handler) error
-func (s *Server) UnregisterEndpoint(pattern string) error
-func (s *Server) SetFallback(handler Handler) error
-func (s *Server) RegisterMiddleware(pattern string, middleware Middleware) error
-func Chain(handler Handler, middleware ...Middleware) Handler
-```
+| Request | Success |
+| --- | --- |
+| POST `/subscribe?topic=X` | 201 with `{"id":N}` |
+| POST `/publish?topic=X` | 200. The request body is the payload. |
+| GET `/events?topic=X&id=N` | 200 with one event or 204 after 15 seconds |
+| POST `/unsubscribe?topic=X&id=N` | 200 and the queue closes |
 
-- Patterns are regular expressions matched against the entire `req.URL.Path`,
-  excluding queries. They are compiled once at registration. `/files/.*` matches
-  descendants of `/files/`; `/health` matches that exact path. Literal regex
-  metacharacters must be escaped when intended as ordinary characters. See
-  [regex basics in Go](../../../knowledge/concepts/regex-basics-in-go.md) for a short
-  explanation with examples.
-- `compilePattern` rejects empty patterns and calls `regexp.Compile` on
-  `\A(?:` + pattern + `)\z`. The boundaries require a whole-path match; grouping
-  keeps them around every alternative in the supplied pattern. Invalid syntax
-  is returned as a registration error. Dispatch reuses the prepared matcher with
-  `MatchString(req.URL.Path)`; it does not compile the pattern on every request.
-- Endpoint pattern strings are unique registration keys. Empty/invalid patterns,
-  duplicate endpoints, and nil handlers/middleware are rejected. Removing an
-  unknown pattern returns an error. Function identity is not used for removal.
-- Endpoints run first-match in registration order. The fallback is stored
-  separately and is considered only when no endpoint matches, including after
-  runtime registrations. Its generic default response is 501.
-- Lab 1 sets a file handler as its fallback, preserving the assignment's GET/POST,
-  400, 404, and 501 behavior. JPEG extensions both map to `image/jpeg`.
-- Matching registered middleware runs in registration order for both endpoints
-  and fallback. Reusing a middleware pattern is allowed. A middleware may return
-  a response without invoking the next handler.
-- `Chain(h, a, b)` runs `a(b(h))`: requests enter A, then B, then the handler;
-  response processing unwinds through B, then A. This is also how registered
-  middleware is composed.
-- The basic application registers method validation globally. It uses `Chain`
-  to attach filename/depth and extension checks only to the file fallback, so a
-  separately registered `/health` endpoint does not need a file extension.
-- Dispatch selects the handler and matching middleware from one consistent
-  registry snapshot before invoking user code. Registry locks are not held while
-  factories or handlers run. Unregistering does not cancel already-selected
-  handlers. Later dispatches see the updated registry.
+One mutex protects membership, topic sequence numbers, and queue sends.
+Publishing offers the event to each current subscriber. A full queue skips the
+new event for that subscriber, so their sequence numbers can have gaps.
 
-## Transport and ownership
+An event request waits outside the mutex. It reads one event from the queue or
+returns 204 on timeout. Unsubscribe removes membership and closes the queue
+under the publication mutex. After waking, the poll checks membership again.
+An ended or unknown subscription returns 404.
 
-`Start(address)` creates a raw TCP listener and calls `Serve(listener)`. `Serve`
-supports an externally supplied listener, which its caller owns. Closing that
-listener stops acceptance; already-admitted requests finish normally.
+A client should finish reading each response before polling again with the same
+ID. The broker rejects overlapping queue waits with 400. Each waiting poll
+occupies one of the ten server workers, so ten waiting polls can delay publishers.
 
-The constructor validates and stores a positive concurrency limit. Lab 1 supplies
-10 in `src/main.go`; the shared server does not hard-code an assignment-specific cap.
-BL-009 fixed the missing assignment of that value. Tests verify admission and
-slot recovery with limits of both 2 and 10, and reject a zero limit.
+Event replies include a sequence number and base64-encoded payload bytes. The
+[broker tests](../src/interfaces/pubsubapi/broker_test.go) check queue bounds,
+concurrent ordering, wakeups, timeouts, and HTTP errors. The
+[application test](../src/pubsub_test.go) checks the registered routes.
 
-- Each admitted connection gets a goroutine under a semaphore, with at most the
-  configured number of active handlers. One request/response is served per connection.
-- Malformed HTTP receives 400. An empty connection ending at EOF is closed.
-- The transport advertises connection closure, writes the response, and closes
-  its body. Handlers must return a non-nil, per-request response.
-- The transport owns the parsed request body. Cleanup closes the connection
-  before the request body, so draining unread body bytes cannot keep a finished
-  handler waiting on the client.
-- Direct callers of `Handle(req)` own both request and response bodies; this
-  method dispatches an already-parsed request without doing networking.
+## Container setup
 
-## File policy and locking
-
-The group explicitly selected middleware as the filename/depth validation
-boundary. The pure rules live in Lab 1's `filepolicy` package. The file manager
-and `LockMap` contain no such policy definitions or checks. Direct file-manager
-callers are responsible for their own access policy.
-
-Filename/depth validation examines the URL path relative to the public directory
-before joining and cleaning it. Extension validation rejects unsupported types
-before attempting file access. POST continues to append; the assignment does not
-explicitly choose append versus replacement semantics.
-
-The file manager converts lexical path aliases to absolute paths so those calls
-share a lock key. This is normalization, not name/depth validation or symlink
-resolution. Each full read holds a shared lock; each full write holds an exclusive
-lock. A generic lock entry counts holders **and waiters** before waiting on its
-read/write mutex. It is removed only when that count reaches zero, preventing
-waiters and newcomers from accidentally using different locks for the same key.
-The registry mutex is never held while waiting for a resource lock or running a
-callback. Callback errors and panics both release the resource lock.
-
-## Deferred connection reuse — BL-008
-
-Reuse needs a request loop using one buffered reader, correct response framing,
-consumed or safely discarded request bodies, and bounded idle waits. An endpoint
-option may permit reuse but cannot override client close requests or parsing and
-writing failures. The option API is deferred with the feature; it is not exposed
-as a nonfunctional flag in this increment.
-
-## Delayed slow-client improvements — BL-007
-
-Ten slow clients can still occupy all ten handler slots. Go already parks network
-I/O waiters using its [network poller](https://go.dev/src/runtime/netpoll.go).
-The planned first step is configurable read/write deadlines and header/body size
-limits, using a concrete workload to select and verify the limits. The group has
-explicitly delayed this work.
-
-A registry alone cannot select readable `net.Conn` values using channel `select`.
-Readability can mean one byte or EOF, not a complete HTTP request. A custom
-readiness scheduler would need bounded connection/request state and polling
-integration; it remains an exploratory alternative. Extra parsing goroutines must
-not silently bypass the assignment's handler cap.
-
-## Verification
-
-- Root `httpserver/router_test.go`: first-match order, whole-path matching, fallback
-  replacement, removal, middleware order/scoping/short-circuiting, and concurrent
-  registry updates. A handler can unregister itself without a registry deadlock.
-- Root `httpserver/server_test.go`: malformed HTTP, response ownership/closure,
-  unread-body cleanup, configured handler caps, zero-limit rejection, and slot
-  recovery with one more connection than the configured limit.
-- `src/files_test.go`: required MIME/status behavior, middleware validation, custom
-  endpoint isolation, POST create/append and truncated bodies, concurrent POST/GET.
-- `concurrent/locks/lockmap_test.go`: generic keys, exclusive updates, concurrent
-  readers, independent keys, and cleanup after callback errors/panics.
-- `concurrent/files/manager_test.go`: caller-owned filename policy and atomic
-  complete file versions when callers use lexical aliases.
-
-Run affected modules and consumers with race detection as described in the root
-agent guide. Network behavior can be exercised with in-memory connections and
-an injected listener, without opening TCP ports.
+The [Dockerfile](../Dockerfile) packages the server and creates its storage
+directory. The [README](../README.md) has commands to build, run, and test it.

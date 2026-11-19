@@ -45,6 +45,5 @@ the process's working directory, which is not necessarily its source directory.
 `go test` runs package tests; [testing](testing.md) explains the checks.
 
 The root [agent guide](../../../AGENTS.md) lists this repository's module/workspace
-commands. The [Lab 1 learning map](../../../labs/lab1/docs/LEARNING.md) connects these
-concepts to the current code. See [strconv.Atoi](https://pkg.go.dev/strconv#Atoi)
+commands. The [Lab 1 README](../../../labs/lab1/README.md) shows how to build and run the server. See [strconv.Atoi](https://pkg.go.dev/strconv#Atoi)
 and [os.Args](https://pkg.go.dev/os#Args) for the APIs.

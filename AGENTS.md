@@ -30,7 +30,7 @@ is permitted provided the students understand the resulting work.
   `src/middleware/` applies rules defined in `src/filepolicy/`. The small broker
   and its four HTTP handlers live together in `src/interfaces/pubsubapi/`;
   waiting polls count toward the ordinary ten-handler limit. See the
-  [broker walkthrough](labs/lab1/docs/PUBSUB.md). Build from `labs/lab1` with
+  [broker walkthrough](labs/lab1/docs/DESIGN.md#pub-sub-broker). Build from `labs/lab1` with
   `go build -o http_server ./src`; keep that working directory when running it.
 - `httpserver/`: the reusable HTTP transport/router module. It owns middleware
   composition and configurable request admission, with no dependency on any lab.
@@ -44,8 +44,7 @@ is permitted provided the students understand the resulting work.
   reusable components that can serve more than one lab.
 - [Lab 1 agent guide](labs/lab1/AGENTS.md): assignment constraints and a summary
   of the [official instructions](labs/lab1/docs/lab1_instructions.pdf).
-- [Lab 1 learning map](labs/lab1/docs/LEARNING.md): a study path and concept-to-code
-  coverage for the basic implementation and its tests.
+- [Lab 1 design](labs/lab1/docs/DESIGN.md): request flow, file locking, broker behavior, and links to source and tests.
 - [Knowledge base](knowledge/README.md): an index of learning notes and design
   decisions, usable as plain Markdown or through Obsidian.
 - [Backlog](BACKLOG.md): shared ideas and selected work, editable by humans and
@@ -129,7 +128,7 @@ The group uses Markdown files tracked in Git for knowledge and planning. See the
 - Keep primary navigation tree-shaped: knowledge index, subject index, then
   concept note. Give each concept one primary parent. Use cross-links only for
   relevant prerequisites or relationships; keep one explanation per concept.
-- Maintain each lab's learning map when implementation changes introduce or remove
+- Maintain each lab's design notes when implementation changes introduce or remove
   concepts. Distinguish intended architecture, current behavior, and deferred work.
 - Keep root and lab READMEs current when setup, build/run commands, or documented
   client-visible behavior changes.

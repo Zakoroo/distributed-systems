@@ -53,4 +53,4 @@ Direct file API or manager callers still own input-validation policy.
 
 This updates the package placement in [decision 0002](0002-lab1-server-and-locking.md).
 See the [Lab 1 design](../../labs/lab1/docs/DESIGN.md) and
-[learning map](../../labs/lab1/docs/LEARNING.md) for current APIs and source links.
+[design notes](../../labs/lab1/docs/DESIGN.md) for current APIs and source links.

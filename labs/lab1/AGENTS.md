@@ -2,19 +2,18 @@
 
 Source: [Lab 1: HTTP Server and Pub-Sub Broker](docs/lab1_instructions.pdf).
 This guide summarizes the supplied assignment. Consult the PDF for exact wording
-and details relevant to a change. The root [agent guide](../../AGENTS.md) also applies.
-For beginner explanations and concept-to-code coverage, use the
-[Lab 1 learning map](docs/LEARNING.md).
+and details relevant to a change.
+See the [Lab 1 design](docs/DESIGN.md) for the request flow, source, and tests.
 For collaborator setup, build/run commands, and curl examples, use the
 [Lab 1 README](README.md).
 
 ## Layout and running
 
 - `src/` contains the executable, tests, and application sub-packages.
-- `docs/` contains the official instructions, design, and learning map.
+- `docs/` contains the official instructions and design.
 - `go.mod` and this guide stay at the lab root. The workspace entry is still
   `./labs/lab1`; application import paths include `/labs/lab1/src/`.
-- From `labs/lab1`, build with `go build -o http_server ./src` and run
+- From `labs/lab1`, run `./setup.sh` to build the binary and create `public/`, then run
   `./http_server 8080`. The runtime `public/` directory is relative to that working
   directory, not to `src/`.
 - The Dockerfile packages a prebuilt binary, runs from `/app`, and creates
@@ -56,7 +55,7 @@ For collaborator setup, build/run commands, and curl examples, use the
 
 The group approved a smaller replacement after removing the previous design.
 `src/interfaces/pubsubapi/broker.go` contains its state and four HTTP handlers;
-[PUBSUB.md](docs/PUBSUB.md) explains them. Waiting polls count toward the existing
+[The broker design](docs/DESIGN.md#pub-sub-broker) explains them. Waiting polls count toward the existing
 ten-handler limit. The bonus shares the file server's executable and port.
 
 | Request | Required behavior |
@@ -98,9 +97,7 @@ ten-handler limit. The bonus shares the file server's executable and port.
 - The group approved and implemented a shared `httpserver` module, ordered endpoint
   registration, separate fallback, path-scoped middleware, and generic
   `locks.LockMap[K]`. Read the [design notes](docs/DESIGN.md) for API and ownership
-  contracts. The [accepted decision](../../knowledge/decisions/0002-lab1-server-and-locking.md)
-  records the chosen validation boundary. [Decision 0003](../../knowledge/decisions/0003-shared-server-and-lab1-packages.md)
-  updates the package placement.
+  contracts.
 - `src/interfaces/fileapi` owns file-request handling, `src/middleware` applies
   request validation, and `src/filepolicy` owns filename/depth rules and content-type mappings.
   These are ordinary Go packages, not `internal` packages; preserve their intended
@@ -118,8 +115,7 @@ ten-handler limit. The bonus shares the file server's executable and port.
   bounded subscriber channels, and an event/timeout select. Clients keep one
   events request per ID outstanding and finish reading before polling again.
   The reader flag rejects overlapping waits; it does not cover network writing.
-  [Decision 0007](../../knowledge/decisions/0007-return-to-basic-server.md) records
-  the accepted simplicity tradeoff: ten waiting polls can delay a publisher.
+  Ten waiting polls can delay a publisher.
 - Cloud deployment, connection reuse, and slow-client redesign remain deferred.
 - Scalability work must respect the assignment's handler limit and networking
   rules. Define the workload and success criteria before redesigning.

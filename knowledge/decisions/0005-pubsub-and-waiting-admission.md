@@ -51,4 +51,4 @@ metadata for the service lifetime. Polls expire or wake on unsubscribe; raw TCP
 client-disconnect detection is not automatically propagated as context cancellation.
 
 The old broker is available in Git commit `3151b3a`. For current status, see the
-[smaller bonus proposal](../../labs/lab1/docs/PUBSUB.md).
+[current broker design](../../labs/lab1/docs/DESIGN.md#pub-sub-broker).

@@ -202,4 +202,4 @@ JSON. This keeps networking rules out of the message-storage implementation.
 
 For context signals, see [context and cancellation](../go/context-and-cancellation.md).
 For the small broker now used in Lab 1, including its ordinary ten-handler limit,
-read the [Lab 1 walkthrough](../../../labs/lab1/docs/PUBSUB.md).
+read the [Lab 1 walkthrough](../../../labs/lab1/docs/DESIGN.md#pub-sub-broker).

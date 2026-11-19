@@ -61,4 +61,4 @@ and a publisher through a one-slot server. Those bonus-specific checks were remo
 with the experiment. The basic file-server, router, transport, and locking tests
 remain. No throughput improvement was claimed.
 
-See the [current bonus proposal](../../labs/lab1/docs/PUBSUB.md).
+See the [current broker design](../../labs/lab1/docs/DESIGN.md#pub-sub-broker).

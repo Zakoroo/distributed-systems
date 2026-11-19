@@ -187,4 +187,4 @@ if an end-to-end deadline is required. Cancellation is cooperative; see
 For an application of these ideas, continue with
 [publish-subscribe and long polling](publish-subscribe.md). Lab 1's small broker
 keeps its permit while waiting; the release/reacquire design above is optional
-background. See the [Lab 1 walkthrough](../../../labs/lab1/docs/PUBSUB.md).
+background. See the [Lab 1 walkthrough](../../../labs/lab1/docs/DESIGN.md#pub-sub-broker).

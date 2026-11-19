@@ -41,8 +41,7 @@ After workspace setup, run these commands from the repository root:
 
 ```sh
 cd labs/lab1
-mkdir -p public
-go build -o http_server ./src
+./setup.sh
 ./http_server 8080
 ```
 
@@ -65,7 +64,7 @@ select the current modules. Format changed Go files with `gofmt`.
 ## Learn and contribute
 
 Start with the [knowledge index](knowledge/README.md) or the
-[Lab 1 learning map](labs/lab1/docs/LEARNING.md). Open the repository root as an
+[Lab 1 design](labs/lab1/docs/DESIGN.md). Open the repository root as an
 Obsidian vault if you prefer that interface; the notes also work as plain Markdown.
 
 Capture ideas in the [backlog](BACKLOG.md). Agents should read the root

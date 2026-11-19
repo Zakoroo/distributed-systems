@@ -3,7 +3,7 @@
 Parent: [Knowledge base](../README.md).
 
 These explanations are reusable across labs. Pick a subject, then follow its
-numbered reading order. The [Lab 1 learning map](../../labs/lab1/docs/LEARNING.md)
+numbered reading order. The [Lab 1 design](../../labs/lab1/docs/DESIGN.md)
 connects the topics to the actual implementation.
 
 ## Subjects

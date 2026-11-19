@@ -125,4 +125,4 @@ No items yet.
   - Evidence: [broker checks](labs/lab1/src/interfaces/pubsubapi/broker_test.go) cover
     queues, wakeups, validation, payloads, order, and membership concurrency;
     [application checks](labs/lab1/src/pubsub_test.go) cover routes and file operations.
-    The [walkthrough](labs/lab1/docs/PUBSUB.md) and README describe the simple limits.
+    The [walkthrough](labs/lab1/docs/DESIGN.md#pub-sub-broker) and README describe the simple limits.

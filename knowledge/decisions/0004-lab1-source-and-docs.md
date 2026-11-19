@@ -41,4 +41,4 @@ source and documentation.
 
 See the [Lab 1 guide](../../labs/lab1/AGENTS.md),
 [design](../../labs/lab1/docs/DESIGN.md), and
-[learning map](../../labs/lab1/docs/LEARNING.md) for current navigation and commands.
+[design notes](../../labs/lab1/docs/DESIGN.md) for current navigation and commands.

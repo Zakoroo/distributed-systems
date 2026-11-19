@@ -155,4 +155,4 @@ The [waiting/admission note](waiting-goroutines-and-admission.md) explains how a
 goroutine can retain its stack while releasing admission. The
 [pub-sub note](publish-subscribe.md) explains queues and long polling. For the
 current project scope and its simpler implementation, see the
-[Lab 1 broker walkthrough](../../../labs/lab1/docs/PUBSUB.md).
+[Lab 1 broker walkthrough](../../../labs/lab1/docs/DESIGN.md#pub-sub-broker).
