@@ -1,0 +1,4 @@
+github.com/Zakoroo/distributed-systems/concurrent v0.1.0 h1:npwbWnJgRIIUSAKKrYxVh80/DFdb70f3VModl/TJCSc=
+github.com/Zakoroo/distributed-systems/concurrent v0.1.0/go.mod h1:AreEh9MojynfYuGo3FqWgkbFsjkxnJOtE6112oJ2FZs=
+github.com/Zakoroo/distributed-systems/httpserver v0.1.0 h1:PNoUWjRVftXT085Q4MciRjANY0m7TBCGwzjkIwcszn8=
+github.com/Zakoroo/distributed-systems/httpserver v0.1.0/go.mod h1:thMraDM0uQQozHijCD0K9tJpfYBPJNCQERigcPlPs/8=
