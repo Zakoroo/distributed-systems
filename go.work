@@ -3,5 +3,6 @@ go 1.27.3
 use (
 	./concurrent
 	./httpserver
+	./labs/6.5840/src
 	./labs/lab1
 )
