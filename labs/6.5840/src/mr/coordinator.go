@@ -1,160 +1,239 @@
 package mr
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"errors"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
 	"os"
-	"strconv"
+	"path/filepath"
 	"sync"
+	"time"
+
+	"6.5840/observability"
 )
 
-const (
-	StatusSuccess        = "SUCCESS"
-	StatusTaskQueueEmpty = "TASK_QUEUE_EMPTY"
-	StatusSubmitRejected = "SUBMIT_REJECTED"
-)
+const taskTimeout = 10 * time.Second
+
+type taskState struct {
+	attemptDir string
+	deadline   time.Time
+	done       bool
+}
 
 type Coordinator struct {
-	mu        sync.Mutex
-	taskQueue chan *Task
-	pending   map[string]*Task
-	done      bool
+	mu       sync.Mutex
+	files    []string
+	workDir  string
+	maps     []taskState
+	reduces  []taskState
+	reporter *observability.Reporter
 }
 
-// create a Coordinator.
-// main/mrcoordinator.go calls this function.
-// nReduce is the number of reduce tasks to use.
+// MakeCoordinator creates one map task per input file and nReduce reduce tasks.
+// It creates a private .mr-job-* directory in the working directory and starts
+// the RPC server. It panics if nReduce is zero or negative.
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
-	if files == nil || len(files) == 0 || nReduce <= 0 {
-		panic("invalid coordinator arguments")
+	if nReduce <= 0 {
+		panic("nReduce must be positive")
 	}
-
-	c := Coordinator{
-		taskQueue: make(chan *Task, len(files)*nReduce),
-		pending:   make(map[string]*Task),
+	// Private to this job and on the same filesystem as the final outputs.
+	workDir, err := ioutil.TempDir(".", ".mr-job-")
+	if err != nil {
+		log.Fatalf("create job directory: %v", err)
 	}
-
-	go c.server(files, nReduce)
-	return &c
+	stderr, statErr := os.Stderr.Stat()
+	interactive := statErr == nil && stderr.Mode()&os.ModeCharDevice != 0 && os.Getenv("TERM") != "" && os.Getenv("TERM") != "dumb"
+	c := &Coordinator{
+		files:    append([]string(nil), files...),
+		workDir:  workDir,
+		maps:     make([]taskState, len(files)),
+		reduces:  make([]taskState, nReduce),
+		reporter: observability.New(os.Stderr, interactive),
+	}
+	c.server()
+	c.reporter.Logf("MapReduce started with %d map tasks and %d reduce tasks", len(c.maps), len(c.reduces))
+	return c
 }
 
-// Your code here -- RPC handlers for the worker to call.
-func (c *Coordinator) FetchTask(args *Args, reply *Reply) error {
-	task := <-c.taskQueue
-
-	if task == nil {
-		// Write fail status
-		reply.parts["status"] = StatusTaskQueueEmpty
-		reply.parts["description"] = "task queue is empty"
-
-		return errors.New("task queue is closed")
+// allDone reports whether every task has published its output.
+// An empty task list is complete.
+func allDone(tasks []taskState) bool {
+	for _, task := range tasks {
+		if !task.done {
+			return false
+		}
 	}
-
-	// Write success status
-	reply.parts["status"] = StatusSuccess
-
-	// Write task id
-	reply.parts["task_id"] = task.id
-
-	// Write objective
-	reply.parts["objective"] = task.objective
-
-	// Write the input params
-	for k, v := range task.input {
-		reply.parts[k] = v
-	}
-
-	return nil
+	return true
 }
 
-func (c *Coordinator) SubmitTask(args *Args, reply *Reply) error {
-	id := args.parts["id"]
-
-	if id == "" {
-		reply.parts["status"] = StatusSubmitRejected
-		reply.parts["description"] = "id is empty"
-		return errors.New("invalid task id")
+// activeTasks returns the map tasks while any map is unfinished, then the
+// reduce tasks. Once all tasks are done, it returns ObjectiveExit and no tasks.
+// The caller must hold c.mu.
+func (c *Coordinator) activeTasks() (Objective, []taskState) {
+	if !allDone(c.maps) {
+		return ObjectiveMap, c.maps
 	}
+	if !allDone(c.reduces) {
+		return ObjectiveReduce, c.reduces
+	}
+	return ObjectiveExit, nil
+}
 
+// FetchTask assigns an available task in the current phase. It creates a fresh
+// staging directory and sets a ten-second deadline for reassignment.
+// Reduce assignments list their partition files from the published map directories.
+// The reply tells the worker to wait if no task is available or exit if the job is done.
+func (c *Coordinator) FetchTask(_ *FetchTaskArgs, reply *FetchTaskReply) error {
+	var event string
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	defer func() {
+		c.mu.Unlock()
+		c.reportEvent(event)
+	}()
 
-	task := c.pending[id]
-	if task == nil {
-		reply.parts["status"] = StatusSubmitRejected
-		reply.parts["description"] = "this task id does not exist or already submitted"
-		return errors.New("invalid task id")
+	objective, tasks := c.activeTasks()
+	if objective == ObjectiveExit {
+		reply.Task.Assignment.Objective = ObjectiveExit
+		return nil
 	}
 
-	delete(c.pending, id)
-	reply.parts["status"] = StatusSuccess
+	now := time.Now()
+	for id := range tasks {
+		state := &tasks[id]
+		if state.done || now.Before(state.deadline) {
+			continue
+		}
+		dir, err := ioutil.TempDir(c.workDir, "attempt-")
+		if err != nil {
+			err := fmt.Errorf("create staging directory for %s task %d: %w", objective, id, err)
+			event = err.Error()
+			return err
+		}
+		if state.attemptDir != "" {
+			event = fmt.Sprintf("reassigned %s task %d after its deadline", objective, id)
+		}
+		state.attemptDir = dir
+		state.deadline = time.Now().Add(taskTimeout)
+
+		task := Task{Assignment: Assignment{Objective: objective, ID: id, Dir: dir}}
+		if objective == ObjectiveMap {
+			task.InputFile = c.files[id]
+			task.NReduce = len(c.reduces)
+		} else {
+			for mapID := range c.maps {
+				task.IntermediateFiles = append(task.IntermediateFiles, partitionFile(c.mapOutput(mapID), id))
+			}
+		}
+		reply.Task = task
+		return nil
+	}
+
+	reply.Task.Assignment.Objective = ObjectiveWait
 	return nil
 }
 
-// start a thread that listens for RPCs from worker.go
-func (c *Coordinator) server(files []string, nReduce int) {
-	rpc.Register(c)
-	rpc.HandleHTTP()
-	//l, e := net.Listen("tcp", ":1234")
+// SubmitTask publishes output only for the current assignment. A stale or
+// duplicate submission leaves Accepted false.
+// For maps, it renames the staging directory to map-N inside the job directory.
+// For reduces, it renames the staged output file to mr-out-N beside the job directory.
+// A failed rename leaves the task unfinished. The final reduce removes the job directory.
+func (c *Coordinator) SubmitTask(args *Assignment, reply *SubmitTaskReply) error {
+	var event string
+	c.mu.Lock()
+	defer func() {
+		c.mu.Unlock()
+		c.reportEvent(event)
+	}()
+
+	objective, tasks := c.activeTasks()
+	if args.Objective != objective || args.ID < 0 || args.ID >= len(tasks) || args.Dir == "" {
+		return nil
+	}
+	state := &tasks[args.ID]
+	if state.done || state.attemptDir != args.Dir {
+		return nil
+	}
+
+	// Keep the attempt check, rename, and completion under the same lock.
+	staged, published := state.attemptDir, c.mapOutput(args.ID)
+	if objective == ObjectiveReduce {
+		staged = reduceOutput(staged)
+		published = filepath.Join(filepath.Dir(c.workDir), fmt.Sprintf("mr-out-%d", args.ID))
+	}
+	if err := os.Rename(staged, published); err != nil {
+		err := fmt.Errorf("publish %s task %d: %w", objective, args.ID, err)
+		event = err.Error()
+		return err
+	}
+	state.done = true
+	reply.Accepted = true
+
+	if objective == ObjectiveReduce && allDone(c.reduces) {
+		if err := os.RemoveAll(c.workDir); err != nil {
+			event = fmt.Sprintf("remove job directory: %v", err)
+		}
+	}
+	return nil
+}
+
+// reportEvent logs a scheduling or file error outside the coordinator lock.
+func (c *Coordinator) reportEvent(event string) {
+	if c.reporter != nil && event != "" {
+		c.reporter.Logf("%s", event)
+	}
+}
+
+// mapOutput returns the path to the published map directory, such as
+// .mr-job-123/map-2. SubmitTask renames the attempt directory to this path,
+// and FetchTask uses it to locate the map's partition files for reducers.
+func (c *Coordinator) mapOutput(id int) string {
+	return filepath.Join(c.workDir, fmt.Sprintf("map-%d", id))
+}
+
+// server registers the coordinator's RPC methods, replaces the Unix socket
+// path, and starts serving worker requests in a goroutine.
+func (c *Coordinator) server() {
+	server := rpc.NewServer()
+	if err := server.Register(c); err != nil {
+		log.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle(rpc.DefaultRPCPath, server)
+
 	sockname := coordinatorSock()
 	os.Remove(sockname)
-	l, e := net.Listen("unix", sockname)
-	if e != nil {
-		log.Fatal("listen error:", e)
+	listener, err := net.Listen("unix", sockname)
+	if err != nil {
+		log.Fatal("listen error: ", err)
 	}
-
-	// Serve incomming connections in the background
-	go http.Serve(l, nil)
-
-	/////////////////////////////// Map phase    ///////////////////////////////
-	for _, file := range files {
-		id, err := GenerateId()
-		if err != nil {
-			log.Fatal("unable to generate id")
-		}
-
-		task := &Task{
-			id:        id,
-			objective: ObjectiveMap,
-			input:     make(map[string]string),
-		}
-
-		task.input["nReduce"] = strconv.Itoa(nReduce)
-		task.input["input_file"] = file
-
-		c.pending[task.id] = task
-	}
-
-	/////////////////////////////// Sort phase   ///////////////////////////////
-
-	/////////////////////////////// Reduce phase ///////////////////////////////
-
-	c.mu.Lock()
-	c.done = true
-	c.mu.Unlock()
+	go http.Serve(listener, mux)
 }
 
-// main/mrcoordinator.go calls Done() periodically to find out
-// if the entire job has finished.
+// Done reports whether every reduce output has been published and displays
+// the current progress when called by the coordinator's polling loop.
 func (c *Coordinator) Done() bool {
-	ret := false
+	c.mu.Lock()
+	maps, reduces := countDone(c.maps), countDone(c.reduces)
+	mapTotal, reduceTotal := len(c.maps), len(c.reduces)
+	c.mu.Unlock()
 
-	// Your code here.
-
-	return ret
+	if c.reporter != nil {
+		label := fmt.Sprintf("map %d/%d | reduce %d/%d", maps, mapTotal, reduces, reduceTotal)
+		c.reporter.Progress(label, maps+reduces, mapTotal+reduceTotal)
+	}
+	return maps == mapTotal && reduces == reduceTotal
 }
 
-func GenerateId() (string, error) {
-	bytes := make([]byte, 32)
-
-	if _, err := rand.Read(bytes); err != nil {
-		return "", errors.New("failed to create id")
+// countDone counts published tasks. The caller must hold the coordinator lock.
+func countDone(tasks []taskState) int {
+	count := 0
+	for _, task := range tasks {
+		if task.done {
+			count++
+		}
 	}
-
-	return hex.EncodeToString(bytes), nil
+	return count
 }

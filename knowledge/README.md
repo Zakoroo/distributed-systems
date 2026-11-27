@@ -46,6 +46,9 @@ beside the corresponding lab and link them here.
 | 3 | [Lab 3](../labs/lab3) (placeholder) | None yet | Pending |
 | 4 | [Lab 4](../labs/lab4) (placeholder) | None yet | Pending |
 
+The [6.5840 MapReduce design](../labs/6.5840/docs/MAPREDUCE.md) covers the
+coordinator and workers in the imported MIT course exercises.
+
 ## Writing and maintaining notes
 
 - Put cross-lab explanations under their subject in `concepts/`. Keep lab-specific
