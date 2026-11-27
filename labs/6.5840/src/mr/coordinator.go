@@ -29,6 +29,7 @@ type Coordinator struct {
 	workDir  string
 	maps     []taskState
 	reduces  []taskState
+	nReduce  int
 	reporter *observability.Reporter
 }
 
@@ -39,6 +40,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	if nReduce <= 0 {
 		panic("nReduce must be positive")
 	}
+
 	// Private to this job and on the same filesystem as the final outputs.
 	workDir, err := ioutil.TempDir(".", ".mr-job-")
 	if err != nil {
@@ -52,6 +54,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 		maps:     make([]taskState, len(files)),
 		reduces:  make([]taskState, nReduce),
 		reporter: observability.New(os.Stderr, interactive),
+		nReduce:  nReduce,
 	}
 	c.server()
 	c.reporter.Logf("MapReduce started with %d map tasks and %d reduce tasks", len(c.maps), len(c.reduces))
@@ -121,7 +124,7 @@ func (c *Coordinator) FetchTask(_ *FetchTaskArgs, reply *FetchTaskReply) error {
 		task := Task{Assignment: Assignment{Objective: objective, ID: id, Dir: dir}}
 		if objective == ObjectiveMap {
 			task.InputFile = c.files[id]
-			task.NReduce = len(c.reduces)
+			task.NReduce = c.nReduce
 		} else {
 			for mapID := range c.maps {
 				task.IntermediateFiles = append(task.IntermediateFiles, partitionFile(c.mapOutput(mapID), id))
@@ -139,7 +142,8 @@ func (c *Coordinator) FetchTask(_ *FetchTaskArgs, reply *FetchTaskReply) error {
 // duplicate submission leaves Accepted false.
 // For maps, it renames the staging directory to map-N inside the job directory.
 // For reduces, it renames the staged output file to mr-out-N beside the job directory.
-// A failed rename leaves the task unfinished. The final reduce removes the job directory.
+// A successful reduce removes its attempt directory. The last reduce removes the
+// entire job directory. A failed rename leaves the task unfinished.
 func (c *Coordinator) SubmitTask(args *Assignment, reply *SubmitTaskReply) error {
 	var event string
 	c.mu.Lock()
@@ -171,9 +175,13 @@ func (c *Coordinator) SubmitTask(args *Assignment, reply *SubmitTaskReply) error
 	state.done = true
 	reply.Accepted = true
 
-	if objective == ObjectiveReduce && allDone(c.reduces) {
-		if err := os.RemoveAll(c.workDir); err != nil {
-			event = fmt.Sprintf("remove job directory: %v", err)
+	if objective == ObjectiveReduce {
+		cleanupDir := state.attemptDir
+		if allDone(c.reduces) {
+			cleanupDir = c.workDir
+		}
+		if err := os.RemoveAll(cleanupDir); err != nil {
+			event = fmt.Sprintf("remove staging directory %q: %v", cleanupDir, err)
 		}
 	}
 	return nil

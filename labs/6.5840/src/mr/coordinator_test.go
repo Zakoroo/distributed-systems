@@ -9,10 +9,10 @@ import (
 )
 
 // TestReduceRetryRejectsStaleSubmission verifies that only the current attempt
-// can publish reduce output and that completion removes the job directory.
+// can publish reduce output. It checks cleanup both during and after the job.
 func TestReduceRetryRejectsStaleSubmission(t *testing.T) {
 	root := t.TempDir()
-	c := &Coordinator{workDir: filepath.Join(root, "job"), reduces: make([]taskState, 1)}
+	c := &Coordinator{workDir: filepath.Join(root, "job"), reduces: make([]taskState, 2)}
 	if err := os.Mkdir(c.workDir, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -39,12 +39,27 @@ func TestReduceRetryRejectsStaleSubmission(t *testing.T) {
 	if _, err := os.Stat(outputPath); !os.IsNotExist(err) {
 		t.Fatalf("stale submission published output, stat error = %v", err)
 	}
-	if err := c.SubmitTask(&retry, &accepted); err != nil || !accepted.Accepted || !c.Done() {
-		t.Fatalf("expected current submission to finish the job, got accepted=%v err=%v done=%v", accepted.Accepted, err, c.Done())
+	if err := c.SubmitTask(&retry, &accepted); err != nil || !accepted.Accepted || c.Done() {
+		t.Fatalf("expected accepted output with the job still active, got accepted=%v err=%v done=%v", accepted.Accepted, err, c.Done())
 	}
 	output, err := ioutil.ReadFile(outputPath)
 	if err != nil || string(output) != "current" {
 		t.Fatalf("expected current output, got %q, err = %v", output, err)
+	}
+	if _, err := os.Stat(retry.Dir); !os.IsNotExist(err) {
+		t.Fatalf("published attempt directory should be gone before job completion, stat error = %v", err)
+	}
+	if _, err := os.Stat(original.Dir); err != nil {
+		t.Fatalf("stale attempt directory should still exist before job completion: %v", err)
+	}
+
+	last := fetchForTest(t, c).Assignment
+	if err := ioutil.WriteFile(reduceOutput(last.Dir), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	var finished SubmitTaskReply
+	if err := c.SubmitTask(&last, &finished); err != nil || !finished.Accepted || !c.Done() {
+		t.Fatalf("expected final submission to finish the job, got accepted=%v err=%v done=%v", finished.Accepted, err, c.Done())
 	}
 	if _, err := os.Stat(c.workDir); !os.IsNotExist(err) {
 		t.Fatalf("job staging directory should be gone, stat error = %v", err)

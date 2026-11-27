@@ -18,7 +18,7 @@ func TestRedirectedProgressUsesDistinctLines(t *testing.T) {
 	if len(lines) != 3 || strings.ContainsAny(out.String(), "\r\x1b") {
 		t.Fatalf("expected distinct plain progress and log lines, got %q", out.String())
 	}
-	if !strings.HasSuffix(lines[0], "1/2 map") || !strings.HasSuffix(lines[1], "retrying task 0") || !strings.HasSuffix(lines[2], "2/2 map") {
+	if !strings.HasSuffix(lines[0], "(total 1/2) map") || !strings.HasSuffix(lines[1], "retrying task 0") || !strings.HasSuffix(lines[2], "(total 2/2) map") {
 		t.Fatalf("unexpected progress or events: %q", lines)
 	}
 }

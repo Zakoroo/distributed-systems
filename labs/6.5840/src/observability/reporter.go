@@ -37,7 +37,7 @@ func (r *Reporter) Progress(label string, completed, total int) {
 	if total > 0 {
 		filled = int(float64(completed) / float64(total) * barWidth)
 	}
-	line := fmt.Sprintf("[%s%s] %d/%d %s", strings.Repeat("#", filled), strings.Repeat("-", barWidth-filled), completed, total, label)
+	line := fmt.Sprintf("[%s%s] (total %d/%d) %s", strings.Repeat("#", filled), strings.Repeat("-", barWidth-filled), completed, total, label)
 	if line == r.last {
 		return
 	}
